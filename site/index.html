@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bitwise Alignment</title>
+<meta name="description" content="A short, bilingual (English / 简体中文) story of bitwise reproducibility in ML: why bits differ, the key milestones, and what exactness costs.">
+<meta property="og:title" content="Bitwise Alignment">
+<meta property="og:description" content="How ML systems learned to make two runs agree, bit for bit.">
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f5f7; --bg2: #ffffff; --fg: #1d1d1f; --fg2: #424245; --dim: #6e6e73; --line: #d2d2d7;
+  --accent: #0071e3; --bad: #e3342f; --good: #1e8e3e; --gold: #b7791f;
+  --sans: "Inter", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #000; --bg2: #111113; --fg: #f5f5f7; --fg2: #c7c7cc; --dim: #8e8e93; --line: #2c2c2e; --accent: #2997ff; --bad: #ff5a4f; --good: #34c759; --gold: #f5b942; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #000; --bg2: #111113; --fg: #f5f5f7; --fg2: #c7c7cc; --dim: #8e8e93; --line: #2c2c2e; --accent: #2997ff; --bad: #ff5a4f; --good: #34c759; --gold: #f5b942; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html { scroll-snap-type: y mandatory; background: var(--bg); }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+.zh2 { display: block; font-size: .5em; font-weight: 500; letter-spacing: 0; color: var(--dim); margin-top: .5em; }
+p .zh2, .sm .zh2 { font-size: .86em; margin-top: .25em; }
+.tile h3 .zh2, .key .h1 .zh2 { font-size: .62em; margin-top: .3em; }
+
+/* ---------- scroll skeleton: tall snap track + one fixed viewport ---------- */
+#track .snap { height: 100vh; height: 100svh; scroll-snap-align: start; scroll-snap-stop: always; }
+#vp { position: fixed; inset: 0; overflow: hidden; }
+.slide { position: absolute; inset: 0; will-change: transform; visibility: hidden; pointer-events: none; }
+.slide.live { visibility: visible; }
+.slide.cur { pointer-events: auto; }
+.sheet { position: absolute; inset: 0; background: var(--sbg, var(--bg)); overflow: hidden;
+  border-radius: calc((1 - var(--e, 1)) * 36px) calc((1 - var(--e, 1)) * 36px) 0 0;
+  box-shadow: 0 -40px 80px rgba(0, 0, 0, calc((1 - var(--e, 1)) * .28)); }
+.sheet::after { content: ""; position: absolute; inset: 0; background: #000; opacity: calc(var(--q, 0) * .55); pointer-events: none; }
+.stage { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 96px max(28px, 7vw) 72px;
+  transform-origin: 50% 35%;
+  transform: translateY(calc(var(--q, 0) * -5vh)) scale(calc(1 - var(--q, 0) * .09));
+  filter: blur(calc(var(--q, 0) * 7px)); }
+
+/* reveal on arrival */
+.rv { opacity: 0; transform: translateY(34px); transition: opacity .9s cubic-bezier(.2,.7,.1,1), transform 1s cubic-bezier(.2,.7,.1,1); transition-delay: calc(var(--d, 0) * 110ms + 80ms); }
+.slide.on .rv { opacity: 1; transform: none; }
+
+/* ---------- HUD ---------- */
+.hud { position: fixed; top: 0; left: 0; right: 0; z-index: 50; height: 52px; display: flex; align-items: center; gap: 14px; padding: 0 max(18px, 3vw);
+  background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: saturate(1.8) blur(18px); -webkit-backdrop-filter: saturate(1.8) blur(18px);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.hud .brand { font-weight: 700; font-size: 15px; letter-spacing: -.01em; text-decoration: none; white-space: nowrap; }
+.hud .spacer { flex: 1; }
+.hud .link { font-size: 14px; color: var(--fg2); text-decoration: none; white-space: nowrap; }
+.hud .link:hover { color: var(--fg); }
+.seg { display: inline-flex; padding: 3px; background: color-mix(in srgb, var(--fg) 7%, transparent); border-radius: 10px; gap: 2px; }
+.seg button { border: 0; background: transparent; padding: 3px 9px; font-size: 13px; border-radius: 7px; color: var(--dim); cursor: pointer; white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--bg2); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.15); font-weight: 600; }
+.iconbtn { border: 0; background: transparent; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; color: var(--fg2); font-size: 16px; }
+.iconbtn:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); }
+.dots { position: fixed; right: max(14px, 1.6vw); top: 50%; transform: translateY(-50%); z-index: 40; display: flex; flex-direction: column; gap: 10px; }
+.dots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 99px; background: color-mix(in srgb, var(--fg) 25%, transparent); cursor: pointer; transition: height .35s cubic-bezier(.2,.7,.1,1), background .3s; position: relative; }
+.dots button.on { height: 26px; background: var(--fg); }
+.dots button span { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-size: 12px; color: var(--fg2); opacity: 0; pointer-events: none; transition: opacity .2s; background: var(--bg2); padding: 3px 8px; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+.dots button:hover span, .dots button:focus-visible span { opacity: 1; }
+.counter { position: fixed; left: max(18px, 3vw); bottom: 18px; z-index: 40; font: 500 12px var(--mono); color: var(--dim); }
+.hint { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 40; font-size: 12px; color: var(--dim); display: flex; flex-direction: column; align-items: center; gap: 4px; transition: opacity .4s; }
+.hint i { width: 18px; height: 28px; border: 1.5px solid var(--dim); border-radius: 10px; position: relative; }
+.hint i::after { content: ""; position: absolute; left: 50%; top: 6px; width: 3px; height: 6px; margin-left: -1.5px; border-radius: 2px; background: var(--dim); animation: wheel 1.6s ease-in-out infinite; }
+@keyframes wheel { 0% { opacity: 0; transform: translateY(-2px); } 40% { opacity: 1; } 100% { opacity: 0; transform: translateY(8px); } }
+.hint.gone { opacity: 0; }
+
+/* ---------- type ---------- */
+.eyebrow { font: 600 13px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.display { font-weight: 800; letter-spacing: -.045em; line-height: .98; margin: 0; font-size: clamp(48px, 10vw, 156px); }
+.h1 { font-weight: 800; letter-spacing: -.035em; line-height: 1.02; margin: 0; font-size: clamp(38px, 6.2vw, 96px); }
+.h2 { font-weight: 750; letter-spacing: -.03em; line-height: 1.06; margin: 0; font-size: clamp(30px, 4.4vw, 64px); }
+.lead { font-size: clamp(18px, 1.9vw, 26px); line-height: 1.4; color: var(--fg2); max-width: 34em; margin: 0; font-weight: 500; letter-spacing: -.01em; }
+.sm { font-size: 15px; color: var(--dim); max-width: 46em; margin: 0; }
+.grad { background: linear-gradient(100deg, var(--fg) 20%, color-mix(in srgb, var(--accent) 70%, var(--fg)) 60%, var(--gold) 95%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* ---------- cover ---------- */
+.bits { margin-top: clamp(28px, 6vh, 64px); display: grid; gap: 6px; max-width: 980px; width: 100%; }
+.bitrow { display: flex; font: 500 clamp(8px, 1.15vw, 15px) var(--mono); }
+.bitrow span { flex: 1 1 0; min-width: 0; text-align: center; color: var(--dim); opacity: 0; transform: translateY(6px); transition: opacity .5s, transform .5s, color .5s; }
+.slide.on .bitrow span { opacity: 1; transform: none; transition-delay: calc(var(--i) * 12ms + 300ms); }
+.bitrow span.g { margin-left: .7em; }
+.slide.on .bitrow span.d { color: var(--bad); font-weight: 700; transition-delay: calc(var(--i) * 12ms + 300ms), calc(var(--i) * 12ms + 300ms), 1.6s; }
+.cover .stage { justify-content: center; }
+
+/* ---------- problem ---------- */
+.eqs { font: 600 clamp(24px, 4.4vw, 64px) var(--mono); letter-spacing: -.03em; display: grid; gap: .1em; margin: 0; }
+.eqs .ne { color: var(--bad); font-family: var(--sans); font-weight: 800; }
+.hexes { display: flex; gap: 6vw; flex-wrap: wrap; margin-top: 4vh; font: 500 clamp(14px, 1.6vw, 22px) var(--mono); color: var(--dim); }
+.hexes b { color: var(--bad); }
+.hexes small { display: block; font: 500 12px var(--sans); color: var(--dim); margin-bottom: 4px; letter-spacing: .02em; }
+.pills { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5vh; }
+.pill { padding: 8px 14px; border-radius: 999px; background: color-mix(in srgb, var(--fg) 7%, transparent); font-size: 15px; font-weight: 500; }
+.pill .zh2 { display: inline; font-size: .85em; margin: 0 0 0 .5em; }
+
+/* ---------- three stakes ---------- */
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(16px, 2.4vw, 36px); margin-top: 6vh; }
+.tile { background: var(--bg2); border-radius: 26px; padding: clamp(20px, 2.4vw, 34px); box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 20px 50px rgba(0,0,0,.06); }
+.tile .k { font: 600 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.tile h3 { font-size: clamp(20px, 2vw, 28px); letter-spacing: -.02em; line-height: 1.15; margin: 10px 0 8px; }
+.tile p { margin: 0; color: var(--fg2); font-size: 16px; }
+
+/* ---------- problem: two reduction trees ---------- */
+.problem .sheet { background: radial-gradient(90% 70% at 50% 18%, color-mix(in srgb, var(--bad) 10%, var(--sbg, var(--bg))) 0%, var(--sbg, var(--bg)) 62%); }
+.tree { width: 100%; max-width: 1080px; margin: 1vh auto 0; }
+.tree svg { width: 100%; height: auto; max-height: 50vh; display: block; overflow: visible; }
+.tree .edge { fill: none; stroke: color-mix(in srgb, var(--fg) 45%, transparent); stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1;
+  transition: stroke-dashoffset .55s cubic-bezier(.4,0,.2,1); transition-delay: var(--t); }
+.slide.on .tree .edge { stroke-dashoffset: 0; }
+.tree .pop { opacity: 0; transform: translateY(8px) scale(.85); transform-box: fill-box; transform-origin: center;
+  transition: opacity .45s ease, transform .6s cubic-bezier(.2,1.5,.4,1); transition-delay: var(--t); }
+.slide.on .tree .pop { opacity: 1; transform: none; }
+.tree .leaf rect { fill: color-mix(in srgb, var(--fg) 8%, transparent); stroke: color-mix(in srgb, var(--fg) 14%, transparent); }
+.tree .leaf text { font: 600 22px var(--mono); fill: var(--fg); }
+.tree .op circle { fill: var(--sbg, var(--bg)); stroke: color-mix(in srgb, var(--fg) 35%, transparent); stroke-width: 1.5; }
+.tree .op text { font: 600 22px var(--mono); fill: var(--fg2); }
+.tree .val { font: 500 15px var(--mono); fill: var(--dim); }
+.tree .res { font: 700 30px var(--mono); letter-spacing: -.02em; }
+.tree .ra { fill: var(--bad); } .tree .rb { fill: var(--fg); }
+.tree .hexl { font: 500 15px var(--mono); fill: var(--dim); letter-spacing: .02em; }
+.tree .hexl .hd { fill: var(--bad); font-weight: 700; }
+.tree .neq text { font: 800 84px var(--sans); fill: var(--bad); }
+.slide.on .tree .neq .glow { animation: glow 2.2s ease-in-out 3.4s infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes glow { 0%, 100% { opacity: .55; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.15); } }
+.tree .bitsapart { font: 600 13px var(--mono); letter-spacing: .08em; text-transform: uppercase; fill: var(--bad); }
+.then { margin: 1.2vh 0 0; font-size: clamp(17px, 1.7vw, 23px); font-weight: 600; letter-spacing: -.01em; display: flex; flex-wrap: wrap; gap: .35em; align-items: baseline; }
+.then .zh2 { display: none; }
+.ticker { position: relative; display: inline-block; min-width: 14em; height: 1.35em; overflow: hidden; vertical-align: bottom; color: var(--accent); }
+.ticker span { position: absolute; left: 0; top: 0; white-space: nowrap; opacity: 0; transform: translateY(100%); }
+.slide.on .ticker span { animation: tick 8s cubic-bezier(.4,0,.2,1) infinite; animation-delay: calc(var(--k) * 2s + 3.6s); }
+@keyframes tick { 0% { opacity: 0; transform: translateY(100%); } 4%, 22% { opacity: 1; transform: none; } 26%, 100% { opacity: 0; transform: translateY(-100%); } }
+
+/* ---------- evolution ---------- */
+.evo { position: relative; margin-top: 3.4vh; }
+.evo-cards { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: clamp(12px, 1.6vw, 22px); position: relative; z-index: 1; }
+.evo-card { text-align: left; background: var(--bg2); border: 1px solid color-mix(in srgb, var(--lane) 35%, var(--line)); border-radius: 20px; padding: clamp(14px, 1.4vw, 20px);
+  cursor: pointer; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 16px 40px rgba(0,0,0,.08);
+  opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .7s cubic-bezier(.2,1.3,.4,1), border-color .2s; transition-delay: var(--t, 0s); }
+.slide.on .evo-card { opacity: 1; transform: none; }
+.evo-card:hover { border-color: var(--lane); }
+.evo-card:hover b { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.evo-top { display: flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 600; color: var(--fg2); min-height: 30px; }
+.evo-top .logo, .evo-top .mono { width: 28px; height: 28px; }
+.evo-top .mono { border-radius: 8px; font-size: 11px; border-width: 1.5px; }
+.evo-card time { font: 600 12px var(--mono); letter-spacing: .05em; color: var(--lane); margin-top: 4px; }
+.evo-card b { font-size: clamp(18px, 1.7vw, 24px); letter-spacing: -.02em; line-height: 1.15; }
+.evo-theme { font-size: 14.5px; color: var(--fg2); line-height: 1.4; }
+.evo-theme .zh2 { font-size: .9em; }
+.evo-axis { height: clamp(110px, 18vh, 170px); }
+.evo-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.evo-line { fill: none; stroke: url(#evograd); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.9s cubic-bezier(.45,0,.25,1); transition-delay: var(--t); }
+.slide.on .evo-line { stroke-dashoffset: 0; }
+.evd, .evo-node { opacity: 0; transform: scale(.2); transform-box: fill-box; transform-origin: center; transition: opacity .3s, transform .5s cubic-bezier(.2,1.6,.4,1); transition-delay: var(--t); }
+.slide.on .evd { opacity: .75; transform: none; }
+.slide.on .evo-node { opacity: 1; transform: none; }
+.evo-con { fill: none; stroke-width: 1.6; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: .7; transition: stroke-dashoffset .6s ease; transition-delay: var(--t); }
+.slide.on .evo-con { stroke-dashoffset: 0; }
+.evo-year { font: 500 12px var(--mono); fill: var(--dim); }
+
+/* ---------- recipes ---------- */
+.recipes .stage { justify-content: flex-start; padding-top: max(86px, 11vh); }
+.rcs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: clamp(8px, .9vw, 12px); margin-top: 2.6vh; }
+.rc code { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rc-meta { display: -webkit-box !important; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rc-meta span + span::before { content: " · "; }
+.rc { display: flex; flex-direction: column; gap: 7px; padding: 12px 14px; border-radius: 16px; background: var(--bg2); border: 1px solid var(--line); text-decoration: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 10px 30px rgba(0,0,0,.06); min-width: 0;
+  opacity: 0; transform: translateY(16px) scale(.97); transition: opacity .5s ease, transform .6s cubic-bezier(.2,1.3,.4,1), border-color .2s; transition-delay: calc(var(--i) * 55ms + .35s); }
+.slide.on .rc { opacity: 1; transform: none; }
+.rc:hover { border-color: var(--accent); }
+.rc-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.rc-top .logo, .rc-top .mono { width: 24px; height: 24px; }
+.rc-top .mono { border-radius: 7px; font-size: 9.5px; border-width: 1.5px; }
+.rc-name { font-weight: 650; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-name em { font-style: normal; color: var(--dim); font-weight: 500; }
+.rc code { font: 500 11.5px var(--mono); color: var(--fg); background: color-mix(in srgb, var(--fg) 6%, transparent); padding: 6px 8px; border-radius: 8px; overflow-wrap: anywhere; line-height: 1.45; }
+.rc code.txt { font-family: var(--sans); font-size: 13px; background: transparent; padding: 0; color: var(--fg2); }
+.rc-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--dim); }
+.rc-meta span:first-child { color: var(--accent); font-weight: 600; }
+
+/* ---------- key frames ---------- */
+.key .sheet { background: radial-gradient(120% 90% at 85% 100%, color-mix(in srgb, var(--lane) 22%, var(--sbg, var(--bg))) 0%, var(--sbg, var(--bg)) 60%); }
+.year { position: absolute; right: -2vw; bottom: -6vh; font-weight: 900; line-height: .8; letter-spacing: -.06em; font-size: min(40vw, 64vh); color: transparent;
+  -webkit-text-stroke: 2px color-mix(in srgb, var(--lane) 55%, transparent); opacity: .55; pointer-events: none; user-select: none;
+  transform: translateX(calc((1 - var(--e, 1)) * 26vw)) translateY(calc(var(--q, 0) * 10vh)); }
+.orgs { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.org { display: inline-flex; align-items: center; gap: 12px; font-size: clamp(18px, 1.8vw, 24px); font-weight: 650; letter-spacing: -.01em; }
+.logo { width: clamp(34px, 3.6vw, 52px); height: clamp(34px, 3.6vw, 52px); background: currentColor; flex: none;
+  -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat; }
+.mono { width: clamp(34px, 3.6vw, 52px); height: clamp(34px, 3.6vw, 52px); border-radius: 12px; border: 2px solid currentColor; display: grid; place-items: center;
+  font: 800 clamp(13px, 1.3vw, 18px) var(--sans); letter-spacing: -.02em; flex: none; }
+.people { font-size: clamp(16px, 1.5vw, 20px); color: var(--fg2); font-weight: 500; }
+.when { font: 600 13px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--lane); margin-top: 4vh; }
+.key .h1 { margin-top: 1.2vh; max-width: 13em; }
+.opened { margin-top: 3vh; font-size: clamp(19px, 2.1vw, 30px); line-height: 1.35; font-weight: 600; letter-spacing: -.015em; max-width: 28em; color: var(--fg); }
+.opened .zh2 { font-size: .78em; font-weight: 500; }
+.knote { margin-top: 2.4vh; font-size: 15px; color: var(--dim); max-width: 50em; }
+.klinks { display: flex; gap: 22px; margin-top: 2.6vh; font-size: 15px; font-weight: 600; }
+.klinks a { color: var(--accent); text-decoration: none; }
+.klinks a:hover { text-decoration: underline; }
+
+/* ---------- overview ---------- */
+.ov { width: 100%; margin-top: 4vh; }
+.ov svg { width: 100%; height: auto; overflow: visible; display: block; }
+.ov .tick { font: 11px var(--mono); fill: var(--dim); }
+.ov .lab { font: 600 12px var(--sans); fill: var(--fg); }
+.ov .lab2 { font: 500 11px var(--mono); fill: var(--dim); }
+.ov .ln { font: 600 11px var(--sans); }
+.ovd { opacity: 0; transform: scale(.2); transform-box: fill-box; transform-origin: center; transition: opacity .4s, transform .5s cubic-bezier(.2,1.4,.4,1); }
+.slide.on .ovd { opacity: 1; transform: none; transition-delay: calc(var(--i) * 22ms + 250ms); }
+.sweep { transition: transform 1.6s cubic-bezier(.4,0,.2,1) .2s; }
+.slide.on .sweep { transform: translateX(var(--to)); }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 999px; font-weight: 600; font-size: 16px; text-decoration: none; background: var(--fg); color: var(--bg); border: 0; }
+.btn.ghost { background: transparent; color: var(--accent); padding-left: 4px; padding-right: 4px; }
+.btn:hover { opacity: .9; }
+.row { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin-top: 4vh; }
+
+/* ---------- cost ---------- */
+.nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(14px, 2vw, 28px); margin-top: 6vh; }
+.num { border-top: 1px solid var(--line); padding-top: 18px; }
+.num b { display: block; font-size: clamp(40px, 5.6vw, 92px); font-weight: 800; letter-spacing: -.05em; line-height: 1; font-variant-numeric: tabular-nums; }
+.num:nth-child(1) b { color: var(--bad); }
+.num:last-child b { color: var(--good); }
+.num .lbl { margin-top: 10px; font-size: 15px; color: var(--fg2); }
+.num .lbl .zh2 { font-size: .9em; }
+.num .src { margin-top: 8px; font: 500 12px var(--mono); color: var(--dim); }
+.num .src a { color: var(--dim); }
+.arrow { height: 2px; background: linear-gradient(90deg, var(--bad), var(--gold), var(--good)); margin-top: 26px; transform-origin: 0 50%; transform: scaleX(0); transition: transform 1.6s cubic-bezier(.4,0,.2,1) .5s; border-radius: 2px; }
+.slide.on .arrow { transform: none; }
+
+/* ---------- outro ---------- */
+.outro .stage { align-items: center; text-align: center; }
+.outro .lead { margin: 2.6vh auto 0; }
+.outro .next { margin: 1.6vh auto 0; font-size: clamp(16px, 1.5vw, 20px); color: var(--accent); font-weight: 600; max-width: 34em; }
+.soon { margin: 4.4vh auto 0; display: inline-flex; align-items: center; gap: 16px; padding: 14px 20px 14px 14px; border-radius: 20px; text-align: left; max-width: 640px;
+  background: color-mix(in srgb, var(--gold) 9%, var(--bg2)); border: 1px solid color-mix(in srgb, var(--gold) 40%, var(--line)); }
+.soon-badge { flex: none; font: 700 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--bg); background: var(--gold); padding: 6px 10px; border-radius: 999px; }
+.soon-body { display: flex; flex-direction: column; gap: 3px; }
+.soon-body b { font-size: clamp(17px, 1.6vw, 21px); letter-spacing: -.01em; }
+.soon-body b .zh2 { font-size: .8em; display: inline; margin-left: .4em; }
+.soon-body > span { font-size: 14px; color: var(--fg2); }
+@media (max-width: 520px) { .soon { flex-direction: column; align-items: flex-start; gap: 10px; } }
+.outro .row { justify-content: center; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 860px) {
+  .rcs { grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 1.6vh; }
+  .rc { padding: 8px 10px; gap: 4px; border-radius: 12px; }
+  .rc-meta { display: none !important; }
+  .rc code { font-size: 10px; padding: 3px 5px; -webkit-line-clamp: 2; }
+  .recipes .stage { padding-top: 70px; }
+  .recipes .h2 { font-size: 26px; }
+  .recipes .sm { display: none; }
+  .evo-axis { height: 96px; }
+  .evolution .sm { font-size: 13px; }
+  .rc-name { font-size: 12.5px; }
+  .rc-top .logo, .rc-top .mono { width: 18px; height: 18px; }
+  .evo-cards { grid-template-columns: 1fr 1fr; }
+  .evo-theme { font-size: 13px; }
+  .evo-card { border-radius: 16px; gap: 3px; }
+  .tree svg { max-height: 40vh; }
+  .ticker { min-width: 11em; }
+  .trio { grid-template-columns: 1fr; gap: 12px; margin-top: 3vh; }
+  .tile { padding: 16px 18px; border-radius: 18px; }
+  .tile h3 { margin: 6px 0 4px; font-size: 19px; }
+  .tile p { font-size: 14.5px; }
+  .nums { grid-template-columns: 1fr 1fr; row-gap: 22px; margin-top: 3vh; }
+  .dots { display: none; }
+  .hud .link.ex { display: none; }
+  .stage { padding: 76px 22px 54px; }
+  .hexes { gap: 18px; }
+  .pills { gap: 6px; } .pill { font-size: 13px; padding: 6px 11px; }
+}
+@media (max-width: 520px) {
+  .hud .brand span { display: none; }
+  .seg button { padding: 3px 7px; }
+  .knote { display: none; }
+  .year { font-size: 56vw; bottom: 2vh; }
+}
+@media (max-height: 700px) and (min-width: 861px) { .knote { display: none; } .trio { margin-top: 3vh; } }
+@media (prefers-reduced-motion: reduce) {
+  .rv, .bitrow span, .ovd, .sweep, .arrow, .dots button, .tree .edge, .tree .pop, .evo-card, .evo-line, .evd, .evo-node, .evo-con { transition: none !important; }
+  .ticker span { animation: none !important; } .ticker span:first-child { opacity: 1; transform: none; }
+  .slide.on .tree .neq .glow { animation: none; }
+  .stage { filter: none; transform: none; }
+  .year { transform: none; }
+  .hint i::after { animation: none; }
+}
+</style>
+</head>
+<body>
+<header class="hud">
+  <a class="brand" href="#s-cover">0x01 <span data-t="brand"></span></a>
+  <div class="spacer"></div>
+  <a class="link ex" id="explore" href="explore.html#s-timeline"></a>
+  <div class="seg" role="group" aria-label="Language / 语言">
+    <button type="button" data-lang="en">EN</button>
+    <button type="button" data-lang="zh">中文</button>
+    <button type="button" data-lang="both">双语</button>
+  </div>
+  <button type="button" class="iconbtn" id="theme" aria-label="Toggle theme"></button>
+</header>
+<nav class="dots" id="dots" aria-label="Slides"></nav>
+<div class="counter" id="counter" aria-hidden="true"></div>
+<div class="hint" id="hint" aria-hidden="true"><i></i><span data-t="scroll"></span></div>
+
+<div id="track" aria-hidden="true"></div>
+<main id="vp"></main>
+
+<script src="data.js"></script>
+<script>
+(() => {
+"use strict";
+const SB = window.STORYBOARD;
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const ICONS = "https://cdn.jsdelivr.net/npm/simple-icons@16.30.0/icons/";
+
+// ================= strings =================
+const UI = {
+  brand: { en: "Bitwise Alignment", zh: "比特级对齐" },
+  explore: { en: "Explore all events →", zh: "查看全部事件 →" },
+  scroll: { en: "Scroll", zh: "向下滑动" },
+  cover: {
+    eyebrow: { en: "awesome-bitwise-alignment", zh: "awesome-bitwise-alignment" },
+    title: { en: "Bitwise Alignment", zh: "比特级对齐" },
+    lead: { en: "How ML systems learned to make two runs agree, bit for bit.", zh: "机器学习系统如何学会让两次运行逐比特一致。" },
+  },
+  problem: {
+    eyebrow: { en: "The problem", zh: "问题" },
+    title: { en: "Same numbers. Different order.\nDifferent bits.", zh: "同样的数，不同的顺序，\n不同的比特。" },
+    bits: { en: n => `${n} bits apart`, zh: n => `相差 ${n} 个比特` },
+    order: { en: "In an LLM stack the order changes with batch size, split-K, atomics, the parallel layout, the library version, or a different algorithm.",
+             zh: "在 LLM 系统里，batch 大小、split-K、原子操作、并行布局、库版本，或换一种算法，都会改变求和顺序。" },
+    then: { en: "One flipped bit is enough to change", zh: "一个比特翻转，就足以改变" },
+    stakes: [
+      { en: "the next token", zh: "下一个 token" },
+      { en: "a gradient", zh: "一次梯度" },
+      { en: "a sampled action in RL", zh: "RL 中的一次采样动作" },
+      { en: "whether a regression is real", zh: "一次回归是否真实" },
+    ],
+  },
+  evo: {
+    eyebrow: { en: "How it evolved", zh: "演进" },
+    title: { en: "From reproducible runs to exact RL.", zh: "从可复现的训练，到逐比特一致的 RL。" },
+    sm: { en: n => `${n} events on one line. The highlighted ones changed the direction.`, zh: n => `一条线上的 ${n} 个事件，被点亮的那几个改变了方向。` },
+  },
+  key: { source: { en: "Source ↗", zh: "原文 ↗" }, inTimeline: { en: "In the timeline →", zh: "在时间线中查看 →" } },
+  recipes: {
+    eyebrow: { en: "Recipes that ship today", zh: "今天就能用的方案" },
+    title: { en: "Exact bits, one switch away.", zh: "逐比特一致，只差一个开关。" },
+    sm: { en: "What each stack turns on, with the cost its own docs state.", zh: "各家需要打开什么，以及其文档自述的代价。" },
+  },
+  cost: {
+    eyebrow: { en: "The price of exactness", zh: "精确的代价" },
+    title: { en: "From 2.4× slower to 1.5%.", zh: "从慢 2.4 倍，到 1.5%。" },
+  },
+  outro: {
+    soon: { en: "Coming soon", zh: "即将推出" },
+    handbook: { en: "Training Alignment Handbook", zh: "训练对齐手册" },
+    handbookSub: { en: "Recipes, checklists and case studies for making training stacks agree bit for bit, and for finding out why when they don't.",
+                   zh: "让训练栈逐比特一致的方案、检查清单与案例，以及当它们不一致时如何找出原因。" },
+    read: { en: "Read the list on GitHub", zh: "在 GitHub 上阅读列表" },
+    propose: { en: "Propose a milestone", zh: "提议新的里程碑" },
+  },
+  themeLight: { en: "Switch to light theme", zh: "切换到浅色" }, themeDark: { en: "Switch to dark theme", zh: "切换到深色" },
+};
+
+// ================= state & helpers =================
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const qp = new URLSearchParams(location.search);
+let mode = [qp.get("lang"), store.get("bitwise-lang")].find(v => ["en", "zh", "both"].includes(v)) ||
+           ((navigator.language || "").toLowerCase().startsWith("zh") ? "zh" : "en");
+const th = store.get("bitwise-theme"); if (th === "light" || th === "dark") document.documentElement.dataset.theme = th;
+const isDark = () => document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const P = () => (mode === "zh" ? "zh" : "en");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const T = (o, l = P()) => (o && typeof o === "object" ? (o[l] ?? o.en) : o ?? "");
+const nl = s => esc(s).replace(/\n/g, "<br>");
+const B = o => (mode === "both" && o && o.zh && o.zh !== o.en) ? `${nl(o.en)}<span class="zh2" lang="zh-CN">${nl(o.zh)}</span>` : nl(T(o));
+const Bf = (o, ...a) => (mode === "both") ? `${esc(o.en(...a))}<span class="zh2" lang="zh-CN">${esc(o.zh(...a))}</span>` : esc(o[P()](...a));
+const laneOf = k => SB.lanes.find(l => l.key === k) || { color: "#888888", label: { en: k, zh: k } };
+const yearOf = d => { const p = d.split("-").map(Number); return p[0] + ((p[1] || 6) - 1) / 12 + ((p[2] || 15) - 1) / 365; };
+const f64 = v => { const dv = new DataView(new ArrayBuffer(8)); dv.setFloat64(0, v); return dv.getBigUint64(0); };
+function repoUrl() {
+  if (SB.repo) return SB.repo.replace(/\/$/, "");
+  const m = /^([^.]+)\.github\.io$/.exec(location.hostname), seg = location.pathname.split("/").filter(Boolean)[0];
+  return m && seg ? `https://github.com/${m[1]}/${seg}` : "";
+}
+const langQ = () => (mode === "en" ? "" : `?lang=${mode}`);
+// a short name for a key frame: its `short` label, else a short title prefix, else the first org, else the authors
+function shortName(e) {
+  if (e.short) return T(e.short);
+  const head = T(e.title).split(":")[0].trim();
+  if (head.length <= 12) return head;
+  const o = (e.orgs || [])[0];
+  return o && SB.orgs[o] ? SB.orgs[o].name : T(e.who);
+}
+function orgBadge(key) {
+  const o = (SB.orgs || {})[key]; if (!o) return "";
+  const mark = o.icon ? `<span class="logo" style="--icon:url('${ICONS}${esc(o.icon)}.svg')" role="img" aria-label="${esc(o.name)} logo"></span>`
+                      : `<span class="mono" aria-hidden="true">${esc(o.mono || o.name[0])}</span>`;
+  return `<span class="org">${mark}${esc(o.name)}</span>`;
+}
+
+// ================= slides =================
+function slideCover() {
+  const a = (0.1 + 0.2) + 0.3, b = 0.1 + (0.2 + 0.3);
+  const ba = f64(a).toString(2).padStart(64, "0"), bb = f64(b).toString(2).padStart(64, "0");
+  const row = (x, y) => [...x].map((c, i) => `<span style="--i:${i}" class="${c !== y[i] ? "d" : ""}${i === 1 || i === 12 ? " g" : ""}">${c}</span>`).join("");
+  return { id: "s-cover", cls: "cover", label: T(UI.brand), html: `
+    <div class="eyebrow rv">${esc(T(UI.cover.eyebrow))}</div>
+    <h1 class="display grad rv" style="--d:1;margin-top:2vh">${B(UI.cover.title)}</h1>
+    <p class="lead rv" style="--d:2;margin-top:3vh">${B(UI.cover.lead)}</p>
+    <div class="bits" role="img" aria-label="The 64 bits of (0.1+0.2)+0.3 and 0.1+(0.2+0.3); the last bits differ">
+      <div class="bitrow">${row(ba, bb)}</div><div class="bitrow">${row(bb, ba)}</div>
+    </div>` };
+}
+function slideProblem() {
+  const S = UI.problem;
+  const l1 = 0.1 + 0.2, A = l1 + 0.3, r1 = 0.2 + 0.3, Bv = 0.1 + r1;      // computed live, IEEE-754 double
+  const hex = v => f64(v).toString(16).toUpperCase().padStart(16, "0");
+  const ha = hex(A), hb = hex(Bv);
+  const nd = [...f64(A).toString(2).padStart(64, "0")].filter((c, i) => c !== f64(Bv).toString(2).padStart(64, "0")[i]).length;
+  const hexSpans = (h, o, cls) => [...h].map((c, i) => `<tspan class="${c !== o[i] ? "hd " : ""}${cls}" data-f="${c}">${c}</tspan>`).join("");
+  // two reduction trees. leaves at y=330, the inner sum at y=230, the root at y=120
+  const leaf = (x, v, t) => `<g class="pop leaf" style="--t:${t}s"><rect x="${x - 42}" y="306" width="84" height="46" rx="23"/><text x="${x}" y="337" text-anchor="middle">${v}</text></g>`;
+  const op = (x, y, t) => `<g class="pop op" style="--t:${t}s"><circle cx="${x}" cy="${y}" r="17"/><text x="${x}" y="${y + 7}" text-anchor="middle">+</text></g>`;
+  const edge = (x1, y1, x2, y2, t) => `<path class="edge" pathLength="1" style="--t:${t}s" d="M${x1} ${y1} C ${x1} ${(y1 + y2) / 2}, ${x2} ${(y1 + y2) / 2}, ${x2} ${y2}"/>`;
+  const val = (x, y, v, t, anchor = "middle") => `<text class="pop val" style="--t:${t}s" x="${x}" y="${y}" text-anchor="${anchor}">${v}</text>`;
+  const tree = (ox, left) => {
+    const [x1, x2, x3] = [ox - 130, ox, ox + 130];
+    const inner = left ? (x1 + x2) / 2 : (x2 + x3) / 2, root = left ? (inner + x3) / 2 : (x1 + inner) / 2;
+    const d = left ? 0 : 0.25;
+    return leaf(x1, "0.1", 0.1 + d) + leaf(x2, "0.2", 0.2 + d) + leaf(x3, "0.3", 0.3 + d)
+      + (left ? edge(x1, 306, inner, 247, 0.5 + d) + edge(x2, 306, inner, 247, 0.5 + d) : edge(x2, 306, inner, 247, 0.5 + d) + edge(x3, 306, inner, 247, 0.5 + d))
+      + op(inner, 230, 0.9 + d) + (left ? val(inner - 26, 235, l1, 1.05 + d, "end") : val(inner + 26, 235, r1, 1.05 + d, "start"))
+      + (left ? edge(inner, 213, root, 137, 1.3 + d) + edge(x3, 306, root, 137, 1.3 + d) : edge(x1, 306, root, 137, 1.3 + d) + edge(inner, 213, root, 137, 1.3 + d))
+      + op(root, 120, 1.7 + d)
+      + `<text class="pop res ${left ? "ra" : "rb"}" style="--t:${1.9 + d}s" x="${root}" y="76" text-anchor="middle">${left ? A : Bv}</text>`
+      + `<text class="pop hexl" style="--t:${2.1 + d}s" x="${root}" y="46" text-anchor="middle">0x${hexSpans(left ? ha : hb, left ? hb : ha, "scr")}</text>`;
+  };
+  return { id: "s-problem", cls: "problem", label: T(S.eyebrow), html: `
+    <div class="eyebrow rv">${esc(T(S.eyebrow))}</div>
+    <h2 class="h2 rv" style="--d:1;margin-top:1.4vh">${B(S.title)}</h2>
+    <div class="tree" role="img" aria-label="(0.1 + 0.2) + 0.3 = ${A}, 0.1 + (0.2 + 0.3) = ${Bv}: ${nd} bits apart">
+      <svg viewBox="0 0 1000 370" aria-hidden="true">
+        <defs><radialGradient id="neglow"><stop offset="0" stop-color="var(--bad)" stop-opacity=".55"/><stop offset="1" stop-color="var(--bad)" stop-opacity="0"/></radialGradient></defs>
+        ${tree(250, true)}${tree(750, false)}
+        <g class="pop neq" style="--t:2.9s"><circle class="glow" cx="500" cy="70" r="70" fill="url(#neglow)"/><text x="500" y="92" text-anchor="middle">≠</text></g>
+        <text class="pop bitsapart" style="--t:3.1s" x="500" y="140" text-anchor="middle">${esc(Bf(S.bits, nd).replace(/<[^>]+>/g, " "))}</text>
+      </svg>
+    </div>
+    <p class="sm rv" style="--d:9;margin-top:1vh">${B(S.order)}</p>
+    <p class="then rv" style="--d:10">${B(S.then)} <span class="ticker" aria-live="off">${S.stakes.map((x, i) => `<span style="--k:${i}">${esc(T(x))}</span>`).join("")}</span></p>` };
+}
+function slideEvolution() {
+  const S = UI.evo, keys = SB.events.filter(e => e.highlight);
+  const theme = e => {   // the direction a work opened: "Opened X: …" → "X"
+    const en = e.opened.en.replace(/^Opened\s+/, "").split(":")[0], zh = e.opened.zh.replace(/^开创了\s*/, "").split("：")[0];
+    const o = { en: en.charAt(0).toUpperCase() + en.slice(1), zh };
+    return B(o);
+  };
+  const cards = keys.map((e, j) => {
+    const org = (e.orgs || [])[0], O = org && SB.orgs[org];
+    const mark = O ? (O.icon ? `<span class="logo" style="--icon:url('${ICONS}${esc(O.icon)}.svg')"></span>` : `<span class="mono">${esc(O.mono || O.name[0])}</span>`) : `<span class="mono">${esc(T(e.who)[0])}</span>`;
+    return `<button type="button" class="evo-card" data-key="${esc(e.id)}" style="--lane:${laneOf(e.lane).color}">
+      <span class="evo-top">${mark}<span>${esc(O ? O.name : T(e.who))}</span></span>
+      <time>${esc(e.date)}</time><b>${esc(shortName(e))}</b><span class="evo-theme">${theme(e)}</span></button>`;
+  }).join("");
+  return { id: "s-evolution", cls: "evolution", label: T(S.eyebrow), html: `
+    <div class="eyebrow rv">${esc(T(S.eyebrow))}</div>
+    <h2 class="h2 rv" style="--d:1;margin-top:1.4vh">${B(S.title)}</h2>
+    <p class="sm rv" style="--d:2;margin-top:1.2vh">${Bf(S.sm, SB.events.length)}</p>
+    <div class="evo" style="--n:${keys.length}">
+      <div class="evo-cards">${cards}</div>
+      <div class="evo-axis"></div>
+      <svg class="evo-svg" aria-hidden="true"></svg>
+    </div>
+    <div class="row rv" style="--d:3;margin-top:2vh"><a class="btn ghost" href="explore.html${langQ()}#s-timeline">${esc(T(UI.explore))}</a></div>` };
+}
+function slideKey(e) {
+  const lane = laneOf(e.lane), year = e.date.slice(0, 4);
+  const orgs = (e.orgs || []).map(orgBadge).join("");
+  const people = orgs ? "" : `<span class="people">${esc(T(e.who))}</span>`;
+  return { id: e.id, cls: "key", lane: lane.color, label: `${year} · ${shortName(e)}`, html: `
+    <div class="year" aria-hidden="true">${year}</div>
+    <div class="orgs rv">${orgs}${people}</div>
+    <div class="when rv" style="--d:1">${esc(e.date)} · ${esc(T(lane.label))}</div>
+    <h2 class="h1 rv" style="--d:2">${B(e.title)}</h2>
+    <p class="opened rv" style="--d:3">${B(e.opened)}</p>
+    <p class="knote rv" style="--d:4">${esc(T(e.note))}</p>
+    <div class="klinks rv" style="--d:5"><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(T(UI.key.source))}</a><a href="explore.html${langQ()}#${esc(e.id)}">${esc(T(UI.key.inTimeline))}</a></div>` };
+}
+function slideRecipes() {
+  const R = UI.recipes, list = SB.recipes || [];
+  const tiles = list.map((r, i) => {
+    const o = SB.orgs[r.org] || { name: r.org };
+    const mark = o.icon ? `<span class="logo" style="--icon:url('${ICONS}${esc(o.icon)}.svg')" role="img" aria-label="${esc(o.name)} logo"></span>`
+                        : `<span class="mono" aria-hidden="true">${esc(o.mono || o.name[0])}</span>`;
+    const name = r.name === o.name ? esc(o.name) : `${esc(o.name)} <em>${esc(r.name)}</em>`;
+    return `<a class="rc" href="${esc(r.url)}" target="_blank" rel="noopener" style="--i:${i}">
+      <span class="rc-top">${mark}<span class="rc-name">${name}</span></span>
+      <code${r.code === false ? ' class="txt"' : ""} title="${esc(r.recipe)}">${esc(r.recipe)}</code>
+      <span class="rc-meta"><span>${esc(T(r.scope))}</span>${r.cost ? `<span>${esc(T(r.cost))}</span>` : ""}</span></a>`;
+  }).join("");
+  return { id: "s-recipes", cls: "recipes", label: T(R.eyebrow), html: `
+    <div class="eyebrow rv">${esc(T(R.eyebrow))}</div>
+    <h2 class="h2 rv" style="--d:1;margin-top:1.2vh">${B(R.title)}</h2>
+    <p class="sm rv" style="--d:2;margin-top:1vh">${B(R.sm)}</p>
+    <div class="rcs">${tiles}</div>` };
+}
+function slideCost() {
+  const C = UI.cost, tr = SB.costTrend || [];
+  return { id: "s-cost", cls: "", label: T(C.eyebrow), html: `
+    <div class="eyebrow rv">${esc(T(C.eyebrow))}</div>
+    <h2 class="h1 rv" style="--d:1;margin-top:2vh">${B(C.title)}</h2>
+    <div class="nums">${tr.map((c, i) => `<div class="num rv" style="--d:${i + 2}"><b data-count="${esc(c.big)}">${esc(c.big)}</b>
+      <div class="lbl">${B(c.label)}</div><div class="src">${esc(c.date)} · <a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(T(c.who))}</a></div></div>`).join("")}</div>
+    <div class="arrow" aria-hidden="true"></div>
+    <p class="sm rv" style="--d:6;margin-top:3vh">${B(SB.costNote)}</p>` };
+}
+function slideOutro() {
+  const O = UI.outro, repo = repoUrl(), [title, lead, next] = SB.outro;
+  return { id: "s-end", cls: "outro", label: T(title).replace("\n", " "), html: `
+    <h2 class="display grad rv" style="font-size:clamp(36px,8vw,128px)">${B(title)}</h2>
+    <p class="lead rv" style="--d:1">${B(lead)}</p>
+    ${next ? `<p class="next rv" style="--d:2">${B(next)}</p>` : ""}
+    <div class="soon rv" style="--d:3">
+      <span class="soon-badge">${esc(T(O.soon))}</span>
+      <span class="soon-body"><b>${B(O.handbook)}</b><span>${B(O.handbookSub)}</span></span>
+    </div>
+    <div class="row rv" style="--d:4">
+      <a class="btn" href="explore.html${langQ()}#s-timeline">${esc(T(UI.explore))}</a>
+      ${repo ? `<a class="btn ghost" href="${esc(repo)}#readme" target="_blank" rel="noopener">${esc(T(O.read))} ↗</a>
+      <a class="btn ghost" href="${esc(repo)}/issues/new?template=milestone.yml" target="_blank" rel="noopener">${esc(T(O.propose))} ↗</a>` : ""}
+    </div>` };
+}
+function buildSlides() {
+  return [slideCover(), slideProblem(), slideEvolution(), ...SB.events.filter(e => e.highlight).map(slideKey), slideRecipes(), slideCost(), slideOutro()];
+}
+
+// ================= render =================
+let slides = [], els = [], cur = -1;
+function render() {
+  slides = buildSlides();
+  $("#track").innerHTML = slides.map(s => `<div class="snap" id="${esc(s.id)}"></div>`).join("");
+  $("#vp").innerHTML = slides.map((s, i) => `
+    <section class="slide ${s.cls}" data-i="${i}" style="z-index:${i + 1};${s.lane ? `--lane:${s.lane};` : ""}--sbg:${i % 2 ? "var(--bg2)" : "var(--bg)"}" aria-label="${esc(s.label)}">
+      <div class="sheet"><div class="stage">${s.html}</div></div></section>`).join("");
+  els = $$("#vp .slide");
+  $("#dots").innerHTML = slides.map((s, i) => `<button type="button" data-i="${i}" aria-label="${esc(s.label)}"><span>${esc(s.label)}</span></button>`).join("");
+  $$("#dots button").forEach(b => b.addEventListener("click", () => go(+b.dataset.i)));
+  $("[data-t=brand]").textContent = T(UI.brand);
+  $("[data-t=scroll]").textContent = T(UI.scroll);
+  $("#explore").textContent = T(UI.explore); $("#explore").href = "explore.html" + langQ() + "#s-timeline";
+  $$("[data-lang]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === mode)));
+  document.documentElement.lang = mode === "zh" ? "zh-CN" : "en";
+  $("#theme").textContent = isDark() ? "☀" : "☾";
+  $("#theme").setAttribute("aria-label", T(isDark() ? UI.themeLight : UI.themeDark));
+  cur = -1; frame();
+  layoutEvolution();
+}
+
+// scroll position → per-slide state. d = slide index − scroll position (in viewport heights):
+// d ≥ 1 waiting below · 0 < d < 1 rising over the previous slide · d ≤ 0 arrived, then pushed back as the next one covers it
+function frame() {
+  if (!innerHeight) return;                     // hidden or zero-height viewport: nothing to lay out yet
+  const vh = innerHeight, pos = scrollY / vh;
+  els.forEach((el, i) => {
+    const d = i - pos;
+    const live = d < 0.9999 && d > -1.05;
+    el.classList.toggle("live", live);
+    if (!live) return;
+    const e = 1 - Math.min(Math.max(d, 0), 1), q = Math.min(Math.max(-d, 0), 1);
+    el.style.transform = d > 0 ? `translate3d(0, ${(reduce ? (d > 0.5 ? 1 : 0) : d) * 100}%, 0)` : "none";
+    el.style.setProperty("--e", reduce ? 1 : e.toFixed(4));
+    el.style.setProperty("--q", reduce ? 0 : q.toFixed(4));
+  });
+  const idx = Math.min(Math.max(Math.round(pos), 0), els.length - 1);
+  if (idx !== cur) {
+    cur = idx;
+    els.forEach((el, i) => { el.classList.toggle("cur", i === idx); el.classList.toggle("on", i === idx); });
+    $$("#dots button").forEach((b, i) => b.classList.toggle("on", i === idx));
+    $("#counter").textContent = `${String(idx + 1).padStart(2, "0")} / ${String(els.length).padStart(2, "0")}`;
+    $("#hint").classList.toggle("gone", idx > 0);
+    if (slides[idx].id === "s-cost") countUp(els[idx]);
+    if (slides[idx].id === "s-problem") scramble(els[idx]);
+  }
+}
+function countUp(el) {
+  $$("[data-count]", el).forEach(b => {
+    const m = /^([\d.]+)(.*)$/.exec(b.dataset.count); if (!m || reduce) return;
+    const target = parseFloat(m[1]), dec = (m[1].split(".")[1] || "").length, t0 = performance.now();
+    const step = now => { const k = Math.min((now - t0) / 1300, 1), v = target * (1 - Math.pow(1 - k, 3)); b.textContent = v.toFixed(dec) + m[2]; if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+}
+// hex digits of the two results spin like a slot machine, then settle left to right on their real values
+let scrambleTimer = 0;
+function scramble(el) {
+  const spans = $$(".scr", el); if (!spans.length || reduce) return;
+  clearTimeout(scrambleTimer);
+  spans.forEach(sp => (sp.textContent = sp.dataset.f));
+  scrambleTimer = setTimeout(() => {
+    const t0 = performance.now(), H = "0123456789ABCDEF";
+    const step = now => {
+      const k = (now - t0) / 1000;
+      spans.forEach((sp, i) => { sp.textContent = k * 18 > (i % 16) + 2 ? sp.dataset.f : H[(Math.random() * 16) | 0]; });
+      if (k < 1.1) requestAnimationFrame(step); else spans.forEach(sp => (sp.textContent = sp.dataset.f));
+    };
+    requestAnimationFrame(step);
+  }, 2000);
+}
+
+// evolution slide: axis, every event, key nodes and card connectors, laid over the real card positions
+function layoutEvolution() {
+  const evo = $(".evo"); if (!evo) return;
+  const svg = $(".evo-svg", evo), axis = $(".evo-axis", evo), W = evo.clientWidth, H = evo.clientHeight;
+  if (!W) return;
+  const ay = axis.offsetTop + axis.offsetHeight * 0.55, x0 = 6, x1 = W - 6;
+  const ts = SB.events.map(e => yearOf(e.date)).sort((a, b) => a - b);
+  const t0 = Math.floor(ts[0]) - 0.05, t1 = Math.ceil(ts[ts.length - 1]);
+  const pts = ts.map((t, i) => [t, (i + 0.5) / ts.length]);
+  const cdf = t => { if (t <= pts[0][0]) return pts[0][1] * (t - t0) / (pts[0][0] - t0); const L = pts[pts.length - 1]; if (t >= L[0]) return L[1] + (1 - L[1]) * (t - L[0]) / (t1 - L[0] || 1);
+    let i = 1; while (pts[i][0] < t) i++; const [ta, ua] = pts[i - 1], [tb, ub] = pts[i]; return tb === ta ? ub : ua + (ub - ua) * (t - ta) / (tb - ta); };
+  const f = t => 0.4 * (t - t0) / (t1 - t0) + 0.6 * cdf(t), X = t => x0 + f(t) * (x1 - x0);
+  const LINE0 = 0.35, LINE = 1.9;                       // the line starts drawing at 0.35 s and takes 1.9 s
+  let s = `<defs><linearGradient id="evograd" x1="0" x2="1"><stop offset="0" stop-color="var(--dim)" stop-opacity=".4"/><stop offset=".6" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--gold)"/></linearGradient></defs>`;
+  for (let y = Math.ceil(t0); y <= t1; y++) {
+    const x = X(y);
+    s += `<line x1="${x}" x2="${x}" y1="${ay - 6}" y2="${ay + 6}" stroke="var(--line)"/>`;
+    if (W > 560 || y % 2 === 0 || y === t1) s += `<text class="evo-year" x="${x}" y="${ay + 28}" text-anchor="middle">${y}</text>`;
+  }
+  s += `<path class="evo-line" pathLength="1" d="M${x0} ${ay} H${x1}" style="--t:${LINE0}s"/>`;
+  SB.events.forEach(e => {
+    if (e.highlight) return;
+    const ty = yearOf(e.date), x = X(ty), t = LINE0 + LINE * f(ty);
+    s += `<circle class="evd" cx="${x.toFixed(1)}" cy="${ay}" r="${e.featured ? 4 : 2.8}" fill="${laneOf(e.lane).color}" style="--t:${t.toFixed(2)}s"/>`;
+  });
+  $$(".evo-card", evo).forEach(c => {
+    const e = SB.events.find(v => v.id === c.dataset.key), ty = yearOf(e.date), x = X(ty), t = LINE0 + LINE * f(ty);
+    const cx = c.offsetLeft + c.offsetWidth / 2, cy = c.offsetTop + c.offsetHeight, col = laneOf(e.lane).color;
+    s += `<path class="evo-con" pathLength="1" d="M${x.toFixed(1)} ${ay - 12} C ${x.toFixed(1)} ${(ay + cy) / 2}, ${cx} ${(ay + cy) / 2}, ${cx} ${cy + 4}" stroke="${col}" style="--t:${(t + 0.15).toFixed(2)}s"/>`;
+    s += `<g class="evo-node" style="--t:${t.toFixed(2)}s"><circle cx="${x.toFixed(1)}" cy="${ay}" r="16" fill="${col}" opacity=".2"/><circle cx="${x.toFixed(1)}" cy="${ay}" r="8" fill="${col}" stroke="var(--sbg, var(--bg))" stroke-width="3"/></g>`;
+    c.style.setProperty("--t", `${(t + 0.4).toFixed(2)}s`);
+  });
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+}
+
+function go(i) {
+  i = Math.min(Math.max(i, 0), slides.length - 1);
+  scrollTo({ top: i * innerHeight, behavior: reduce ? "instant" : "smooth" });
+}
+
+let ticking = false;
+addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; frame(); }); } }, { passive: true });
+addEventListener("resize", () => { frame(); layoutEvolution(); });
+document.addEventListener("click", e => {
+  const c = e.target.closest(".evo-card"); if (!c) return;
+  const i = slides.findIndex(s => s.id === c.dataset.key); if (i >= 0) go(i);
+});
+document.fonts?.ready.then(layoutEvolution);
+addEventListener("keydown", e => {
+  if (e.target.closest("input, textarea")) return;
+  const k = e.key;
+  if (k === "ArrowDown" || k === "PageDown" || (k === " " && !e.shiftKey) || k === "j") { e.preventDefault(); go(cur + 1); }
+  else if (k === "ArrowUp" || k === "PageUp" || (k === " " && e.shiftKey) || k === "k") { e.preventDefault(); go(cur - 1); }
+  else if (k === "Home") { e.preventDefault(); go(0); }
+  else if (k === "End") { e.preventDefault(); go(slides.length - 1); }
+});
+$$("[data-lang]").forEach(b => b.addEventListener("click", () => {
+  if (b.dataset.lang === mode) return;
+  mode = b.dataset.lang; store.set("bitwise-lang", mode);
+  const u = new URL(location.href); u.searchParams.set("lang", mode); history.replaceState(null, "", u);
+  const keep = cur; render(); scrollTo({ top: keep * innerHeight, behavior: "instant" }); frame();
+}));
+$("#theme").addEventListener("click", () => {
+  document.documentElement.dataset.theme = isDark() ? "light" : "dark"; store.set("bitwise-theme", document.documentElement.dataset.theme); render();
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { if (!document.documentElement.dataset.theme) render(); });
+$(".hud .brand").addEventListener("click", e => { e.preventDefault(); go(0); });
+
+render();
+// deep link: #<slide id> (e.g. #palm-bitwise, #s-cost)
+function goHash() { const i = slides.findIndex(s => s.id === decodeURIComponent(location.hash.slice(1))); if (i >= 0) scrollTo({ top: i * innerHeight, behavior: "instant" }); }
+addEventListener("hashchange", goHash);
+setTimeout(goHash, 0);
+})();
+</script>
+</body>
+</html>

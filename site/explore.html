@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bitwise Alignment: explore the timeline</title>
+<meta name="description" content="How ML systems learned to make two runs agree bit for bit, and what it costs. An interactive, bilingual (English / 简体中文) history of bitwise reproducibility, batch invariance and train–inference alignment.">
+<meta property="og:title" content="Bitwise Alignment: a short history">
+<meta property="og:description" content="How ML systems learned to make two runs agree bit for bit, and what it costs.">
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ---------- tokens ---------- */
+:root {
+  --bg: #fbfbfa; --bg2: #f3f3f1; --card: #ffffff; --fg: #17181a; --fg2: #3d4046; --dim: #6b7079; --faint: #e7e7e4; --line: #dcdcd8;
+  --accent: #2f6fdf; --gold: #a56a00; --gold-soft: #f6e7c7; --bad: #c9332b; --good: #1d8a46;
+  --shadow: 0 1px 2px rgba(20,20,20,.04), 0 8px 24px rgba(20,20,20,.06);
+  --sans: "Inter", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --nav: 56px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c0d10; --bg2: #121419; --card: #15171d; --fg: #eceef2; --fg2: #c3c7cf; --dim: #8b919c; --faint: #1f222a; --line: #2a2e37;
+    --accent: #7aa7ff; --gold: #e6b450; --gold-soft: #3a2f17; --bad: #ff6b5e; --good: #4cc47a;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c0d10; --bg2: #121419; --card: #15171d; --fg: #eceef2; --fg2: #c3c7cf; --dim: #8b919c; --faint: #1f222a; --line: #2a2e37;
+  --accent: #7aa7ff; --gold: #e6b450; --gold-soft: #3a2f17; --bad: #ff6b5e; --good: #4cc47a;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+
+/* ---------- base ---------- */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--nav) + 16px); }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+a { color: inherit; }
+:lang(zh-CN) { font-family: "Noto Sans SC", var(--sans); }
+.zh2 { display: block; color: var(--dim); font-weight: 400; font-size: .88em; margin-top: 2px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+button { font: inherit; color: inherit; }
+::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+
+/* ---------- nav ---------- */
+.nav { position: sticky; top: 0; z-index: 20; height: var(--nav); background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: saturate(1.4) blur(12px); -webkit-backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--line); }
+.nav .wrap { height: 100%; display: flex; align-items: center; gap: 20px; }
+.brand { font-weight: 700; font-size: 15px; letter-spacing: -.01em; text-decoration: none; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.brand .bitlogo { font: 600 12px var(--mono); padding: 2px 6px; border: 1px solid var(--line); border-radius: 6px; color: var(--dim); }
+.navlinks { display: flex; gap: 4px; margin-left: 8px; }
+.navlinks a { text-decoration: none; color: var(--dim); font-size: 14px; padding: 6px 10px; border-radius: 8px; }
+.navlinks a:hover { color: var(--fg); background: var(--faint); }
+.navlinks a.on { color: var(--fg); }
+.spacer { flex: 1; }
+.seg { display: inline-flex; padding: 3px; background: var(--faint); border-radius: 10px; gap: 2px; }
+.seg button { border: 0; background: transparent; padding: 4px 10px; font-size: 13px; border-radius: 7px; color: var(--dim); cursor: pointer; white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.12); font-weight: 600; }
+.iconbtn { border: 1px solid var(--line); background: transparent; width: 34px; height: 34px; border-radius: 9px; cursor: pointer; display: grid; place-items: center; color: var(--dim); text-decoration: none; flex: none; }
+.iconbtn:hover { color: var(--fg); border-color: var(--dim); }
+.progress { position: absolute; left: 0; bottom: -1px; height: 2px; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(90deg, var(--accent), var(--gold)); }
+
+/* ---------- hero ---------- */
+.hero { padding: 88px 0 72px; position: relative; overflow: hidden; }
+.eyebrow { font: 500 13px var(--mono); color: var(--dim); letter-spacing: .02em; }
+.hero h1 { font-size: clamp(40px, 6.4vw, 76px); line-height: 1.02; letter-spacing: -.035em; margin: 14px 0 18px; font-weight: 800; max-width: 16ch; }
+.hero h1 .zh2 { font-size: .42em; letter-spacing: 0; margin-top: 12px; font-weight: 500; color: var(--fg2); }
+.hero .lede { font-size: clamp(17px, 2vw, 21px); color: var(--fg2); max-width: 46ch; margin: 0; }
+.hero .lede .zh2 { font-size: .85em; }
+.bits { margin-top: 44px; display: grid; gap: 8px; max-width: 100%; }
+.bitrow { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 16px; }
+.bitrow .expr { font: 500 14px var(--mono); color: var(--fg2); white-space: nowrap; }
+/* 64 cells share the row equally, so the bits always fit the width */
+.bitcells { display: flex; gap: 0; font: 500 clamp(7px, 1.1vw, 13px) var(--mono); flex-wrap: nowrap; max-width: 960px; }
+.bitcells span { flex: 1 1 0; min-width: 0; text-align: center; color: var(--dim); opacity: 0; animation: bitin .5s forwards; }
+.bitcells span.gap { margin-left: .6em; }
+.bitcells span.d { color: var(--bad); font-weight: 700; }
+.bitrow.b .bitcells span.d { text-shadow: 0 0 12px color-mix(in srgb, var(--bad) 60%, transparent); }
+.bitlabels { display: grid; grid-template-columns: 150px 1fr; gap: 16px; font: 12px var(--mono); color: var(--dim); }
+/* label spans line up with the 1 sign / 11 exponent / 52 mantissa bits above */
+.bitlabels .parts { display: grid; grid-template-columns: 1fr 11fr 52fr; column-gap: 0; white-space: nowrap; max-width: 960px; }
+.bitlabels .parts span { border-top: 1px solid var(--line); padding-top: 4px; margin-right: .5em; overflow: hidden; text-overflow: clip; }
+.bitlabels .parts span:first-child { text-align: center; margin-right: .25em; overflow: visible; }
+.bitverdict { margin-top: 14px; font-size: 15px; color: var(--fg2); }
+.bitverdict b { color: var(--bad); }
+@keyframes bitin { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.stats { display: flex; gap: 36px; margin-top: 48px; flex-wrap: wrap; }
+.stat b { display: block; font-size: 30px; letter-spacing: -.02em; font-weight: 700; }
+.stat span { font-size: 13px; color: var(--dim); }
+.ctas { display: flex; gap: 12px; margin-top: 40px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 15px; text-decoration: none; border: 1px solid var(--line); background: var(--card); box-shadow: var(--shadow); transition: transform .15s ease; }
+.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.btn:hover { transform: translateY(-1px); }
+
+/* ---------- sections ---------- */
+section.s { padding: 96px 0; border-top: 1px solid var(--line); }
+.kicker { font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h2.title { font-size: clamp(30px, 3.6vw, 44px); line-height: 1.1; letter-spacing: -.025em; margin: 10px 0 14px; font-weight: 750; }
+h2.title .zh2 { font-size: .55em; letter-spacing: 0; margin-top: 8px; }
+.intro { color: var(--fg2); max-width: 62ch; font-size: 18px; margin: 0 0 40px; }
+
+/* scrolly layout: sticky visual + steps */
+.scrolly { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 56px; align-items: start; }
+.stick { position: sticky; top: calc(var(--nav) + 24px); height: calc(100vh - var(--nav) - 48px); max-height: 760px; display: flex; align-items: center; }
+.panel { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 28px; position: relative; overflow: hidden; }
+.steps { padding: 18vh 0 30vh; }
+.step { min-height: 62vh; display: flex; align-items: center; }
+.step > div { opacity: .28; transition: opacity .4s ease; }
+.step.on > div { opacity: 1; }
+.step h3 { font-size: 24px; letter-spacing: -.015em; margin: 0 0 10px; line-height: 1.25; }
+.step p { color: var(--fg2); margin: 0; font-size: 17px; }
+.step .num { font: 600 13px var(--mono); color: var(--dim); display: block; margin-bottom: 8px; }
+
+/* why panel: three stacked layers, one visible */
+.panel.why { display: grid; }
+.vis { grid-area: 1 / 1; opacity: 0; transform: translateY(10px); transition: opacity .5s ease, transform .5s ease; pointer-events: none; display: flex; flex-direction: column; justify-content: center; }
+.vis.on { opacity: 1; transform: none; pointer-events: auto; }
+.eq { font: 500 clamp(14px, 1.5vw, 19px) var(--mono); display: grid; gap: 14px; }
+.eq .row { display: flex; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; padding: 14px 16px; border-radius: 12px; background: var(--bg2); }
+.eq .hex { color: var(--dim); }
+.eq .hex em { font-style: normal; color: var(--bad); font-weight: 600; }
+.eq .caption { font: 13.5px var(--sans); color: var(--dim); }
+.chips { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.chip { padding: 14px 16px; border-radius: 12px; background: var(--bg2); border: 1px solid var(--line); font-size: 15px; font-weight: 600; opacity: 0; transform: translateY(6px); transition: opacity .4s ease, transform .4s ease; }
+.vis.on .chip { opacity: 1; transform: none; }
+.chip small { display: block; color: var(--dim); font-size: 12.5px; margin-top: 2px; font-weight: 400; }
+.curve svg { width: 100%; height: auto; overflow: visible; }
+.curve path { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 2.4s cubic-bezier(.4,0,.2,1); }
+.vis.on .curve path { stroke-dashoffset: 0; }
+.curve .mark { opacity: 0; transition: opacity .5s ease 1.4s; }
+.vis.on .curve .mark { opacity: 1; }
+.legend { display: flex; gap: 18px; font-size: 13px; color: var(--dim); margin-top: 12px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+
+/* ---------- timeline ---------- */
+.tl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; }
+.tl .stick { align-items: stretch; }
+.chart { width: 100%; height: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+.chart svg { display: block; width: 100%; height: 100%; }
+.chart .now-label { position: absolute; left: 16px; bottom: 12px; right: 16px; font-size: 13px; color: var(--dim); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chart .now-label b { color: var(--fg); font-weight: 600; font-family: var(--mono); font-size: 12.5px; }
+svg .tick { font: 11px var(--mono); fill: var(--dim); }
+svg .lanelab { font: 600 11px var(--sans); }
+svg .eralab { font: 500 11px var(--sans); fill: var(--dim); }
+svg .grid { stroke: var(--line); stroke-width: 1; }
+svg .era { fill: var(--bg2); }
+svg .dot { transition: opacity .35s ease; cursor: pointer; }
+svg .dot.future { opacity: .2; }
+svg .dot.off { opacity: .06 !important; }
+svg .halo { fill: none; stroke: var(--gold); stroke-width: 1.5; transition: opacity .35s ease; pointer-events: none; }
+svg .halo.future { opacity: .22; }
+svg .halo.off { opacity: .05; }
+svg .nowline { stroke: var(--fg); stroke-width: 1; stroke-dasharray: 3 3; opacity: .4; transition: transform .45s cubic-bezier(.3,.7,.2,1); }
+svg .cur { transition: transform .45s cubic-bezier(.3,.7,.2,1); pointer-events: none; }
+svg .cur circle { fill: none; stroke-width: 2; }
+svg .cur .pulse { animation: pulse 1.8s ease-out infinite; transform-origin: center; transform-box: fill-box; }
+@keyframes pulse { from { opacity: .7; transform: scale(1); } to { opacity: 0; transform: scale(2.4); } }
+.tip { position: absolute; pointer-events: none; background: var(--fg); color: var(--bg); font-size: 12.5px; padding: 6px 9px; border-radius: 8px; max-width: 260px; opacity: 0; transform: translateY(4px); transition: opacity .15s, transform .15s; z-index: 2; line-height: 1.35; }
+.tip.show { opacity: 1; transform: none; }
+.tip time { font-family: var(--mono); opacity: .7; display: block; font-size: 11px; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 28px; }
+.fchip { border: 1px solid var(--line); background: var(--card); padding: 5px 11px 5px 9px; border-radius: 999px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; color: var(--fg2); }
+.fchip i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); display: inline-block; }
+.fchip[aria-pressed="false"] { opacity: .45; }
+.fchip.firsts { border-color: color-mix(in srgb, var(--gold) 50%, var(--line)); opacity: 1; }
+.fchip.firsts[aria-pressed="true"] { background: var(--gold-soft); color: var(--fg); }
+.events { display: flex; flex-direction: column; gap: 18px; padding-bottom: 30vh; }
+.ev { scroll-margin-top: calc(var(--nav) + 80px); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px; box-shadow: var(--shadow); position: relative; transition: border-color .3s ease, transform .3s ease; }
+.card::before { content: ""; position: absolute; left: -1px; top: 18px; bottom: 18px; width: 3px; border-radius: 3px; background: var(--lane); }
+.card.on { border-color: color-mix(in srgb, var(--lane) 55%, var(--line)); transform: translateX(-4px); }
+.card.first { background: linear-gradient(180deg, color-mix(in srgb, var(--gold-soft) 55%, var(--card)), var(--card) 70%); }
+.meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--dim); }
+.meta time { font: 500 13px var(--mono); color: var(--fg2); }
+.lane { display: inline-flex; align-items: center; gap: 6px; }
+.lane i { width: 8px; height: 8px; border-radius: 50%; background: var(--lane); flex: none; }
+.badge { font: 600 11px var(--mono); letter-spacing: .04em; color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); padding: 1px 7px; border-radius: 999px; text-transform: uppercase; }
+.card h3 { font-size: 21px; line-height: 1.3; letter-spacing: -.012em; margin: 10px 0 4px; font-weight: 650; }
+.card h3 a { text-decoration: none; }
+.card h3, .also .row1 a, .note, .sub, .firstline { overflow-wrap: anywhere; }
+.card h3 a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.who { font-size: 14px; color: var(--dim); margin: 0 0 10px; }
+.firstline { font-size: 15.5px; color: var(--gold); font-weight: 600; margin: 0 0 8px; line-height: 1.5; }
+.firstline .zh2 { color: color-mix(in srgb, var(--gold) 80%, var(--dim)); font-weight: 500; }
+.note { margin: 0; color: var(--fg2); font-size: 15.5px; }
+.actions { display: flex; gap: 14px; margin-top: 14px; font-size: 13.5px; }
+.actions a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.actions a:hover { text-decoration: underline; }
+.actions .perma { color: var(--dim); font-family: var(--mono); }
+.also { list-style: none; margin: 0 0 0 14px; padding: 4px 0 4px 18px; border-left: 1px dashed var(--line); display: flex; flex-direction: column; gap: 2px; }
+.also li { padding: 8px 12px; border-radius: 10px; transition: background .25s ease; }
+.also li.on { background: var(--bg2); }
+.also .row1 { display: flex; gap: 6px 10px; align-items: baseline; flex-wrap: wrap; font-size: 14.5px; }
+.also time { font: 12.5px var(--mono); color: var(--dim); min-width: 84px; }
+.also a { text-decoration: none; font-weight: 550; }
+.also a:hover { text-decoration: underline; }
+.also .who { margin: 0; font-size: 13px; }
+.also .sub { font-size: 13.5px; color: var(--dim); margin: 2px 0 0 94px; }
+.also-h { font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--dim); margin: 6px 0 0 32px; }
+.hidden { display: none !important; }
+
+/* ---------- divergence ---------- */
+.fp { width: 100%; border-collapse: separate; border-spacing: 0 6px; font: 13.5px var(--mono); }
+.fp th { font: 600 12px var(--sans); color: var(--dim); text-align: left; padding: 0 10px 4px; }
+.fp td { padding: 7px 10px; background: var(--bg2); transition: background .3s ease, color .3s ease, opacity .3s ease; }
+.fp td:first-child { border-radius: 8px 0 0 8px; color: var(--fg2); font-family: var(--sans); }
+.fp td:last-child { border-radius: 0 8px 8px 0; }
+.fp td.eq { text-align: center; width: 36px; font-weight: 700; }
+.fp tr.pending td.h, .fp tr.pending td.eq { color: transparent; }
+.fp tr.ok td.h { color: var(--fg); background: color-mix(in srgb, var(--good) 13%, var(--bg2)); }
+.fp tr.ok td.eq { color: var(--good); }
+.fp tr.bad td { background: color-mix(in srgb, var(--bad) 15%, var(--bg2)); }
+.fp tr.bad td.eq { color: var(--bad); }
+.fp tr.bad td.h { color: var(--fg); }
+.fp tr.after td { opacity: .35; }
+.fp tr.bad:not(.after) td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
+.verdict { margin-top: 14px; font-size: 15px; font-weight: 600; color: var(--gold); opacity: 0; transition: opacity .4s; min-height: 1.6em; }
+.verdict.show { opacity: 1; }
+.illus { font-size: 12.5px; color: var(--dim); margin-top: 8px; }
+.toolsline { font-size: 15px; color: var(--fg2); }
+.toolsline a { color: var(--accent); text-decoration: none; }
+.toolsline a:hover { text-decoration: underline; }
+
+/* ---------- cost ---------- */
+.bars { display: grid; gap: 22px; margin: 8px 0 44px; }
+.bar { display: grid; grid-template-columns: minmax(180px, 300px) 1fr; gap: 22px; align-items: center; }
+.bar .lab b { display: block; font-size: 16px; }
+.bar .lab span { font-size: 13px; color: var(--dim); }
+.bar .track { height: 40px; background: var(--bg2); border-radius: 10px; position: relative; overflow: hidden; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 75%, transparent), var(--gold)); border-radius: 10px; transition: width 1.2s cubic-bezier(.3,.7,.2,1); }
+.bars.in .bar .fill { width: var(--w); }
+.bar .val { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-weight: 650; font-size: 14.5px; white-space: nowrap; z-index: 1; }
+.bar .val.inside { color: var(--bg); }
+.bar .val.out { left: 12px; transition: left 1.2s cubic-bezier(.3,.7,.2,1); }
+.bars.in .bar .val.out { left: calc(var(--w) + 12px); }
+table.costs { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+table.costs th, table.costs td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.costs th { font-size: 12.5px; color: var(--dim); font-weight: 600; }
+table.costs td:first-child a { font-weight: 600; text-decoration: none; }
+table.costs td:first-child a:hover { text-decoration: underline; }
+table.costs td:last-child { font-variant-numeric: tabular-nums; }
+.reading { margin-top: 20px; color: var(--fg2); font-size: 15.5px; max-width: 70ch; }
+
+/* ---------- outro ---------- */
+.outro { padding: 120px 0 80px; text-align: center; border-top: 1px solid var(--line); }
+.outro p.big { font-size: clamp(28px, 4vw, 48px); font-weight: 750; letter-spacing: -.025em; line-height: 1.15; margin: 0 auto 18px; max-width: 22ch; }
+.outro p.big .zh2 { font-size: .5em; letter-spacing: 0; margin-top: 10px; }
+.outro p.sub { color: var(--fg2); font-size: 18px; margin: 6px auto; max-width: 56ch; }
+.outro .ctas { justify-content: center; margin-top: 36px; }
+footer { border-top: 1px solid var(--line); padding: 28px 0 48px; color: var(--dim); font-size: 13.5px; }
+footer code { font-family: var(--mono); font-size: .95em; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 960px) {
+  .navlinks { display: none; }
+  .scrolly, .tl { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .stick, .chart, .chart svg { min-width: 0; max-width: 100vw; }
+  /* phones and tablets: panels flow with the text instead of pinning over it */
+  .scrolly .stick { position: static; height: auto; max-height: none; margin-bottom: 8px; }
+  .panel { padding: 18px; }
+  .panel.why { gap: 28px; }
+  .vis { grid-area: auto; opacity: 1; transform: none; pointer-events: auto; }
+  .vis .chip { opacity: 1; transform: none; }
+  .vis .curve path { stroke-dashoffset: 0; }
+  .vis .curve .mark { opacity: 1; }
+  .steps { padding: 16px 0 0; }
+  .step { min-height: 0; padding: 14px 0; }
+  .step > div { opacity: 1; }
+  .tl .stick { top: var(--nav); height: 150px; z-index: 5; margin: 0 -24px 16px; }
+  .chart { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+  .chart .now-label { bottom: 6px; left: 12px; }
+  .ev { scroll-margin-top: calc(var(--nav) + 170px); }
+  .card.on { transform: none; }
+}
+@media (max-width: 640px) {
+  .wrap { padding: 0 16px; }
+  .tl .stick { margin: 0 -16px 14px; }
+  .nav .wrap { gap: 8px; }
+  .brand span.full { display: none; }
+  .seg button { padding: 4px 8px; }
+  .hero { padding: 56px 0 48px; }
+  .bitrow, .bitlabels { grid-template-columns: 1fr; gap: 4px; }
+  .bitlabels > div:first-child { display: none; }
+  .bitlabels .parts { font-size: 10px; }
+  .chips { grid-template-columns: 1fr; }
+  .bar { grid-template-columns: 1fr; gap: 8px; }
+  .also { margin-left: 4px; padding-left: 10px; }
+  .also .sub { margin-left: 0; }
+  .card { padding: 18px; }
+  section.s { padding: 64px 0; }
+  .eq .row { padding: 10px 12px; }
+  .fp { font-size: 12px; }
+  .fp td { padding: 6px 7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .bitcells span { opacity: 1; }
+}
+</style>
+</head>
+<body>
+<nav class="nav" aria-label="Sections">
+  <div class="wrap">
+    <a class="brand" href="index.html" title="Back to the story"><span class="bitlogo">0x01</span><span class="full" data-t="brand"></span></a>
+    <div class="navlinks" id="navlinks"></div>
+    <div class="spacer"></div>
+    <div class="seg" role="group" aria-label="Language / 语言">
+      <button type="button" data-lang="en">EN</button>
+      <button type="button" data-lang="zh">中文</button>
+      <button type="button" data-lang="both">双语</button>
+    </div>
+    <button type="button" class="iconbtn" id="theme" aria-label="Toggle theme"></button>
+    <a class="iconbtn hidden" id="gh" target="_blank" rel="noopener" aria-label="GitHub repository">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.690-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.950 0-.87.31-1.590.82-2.150-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.360.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    </a>
+  </div>
+  <div class="progress" id="progress"></div>
+</nav>
+
+<main id="top">
+  <header class="hero"><div class="wrap" id="hero"></div></header>
+  <section class="s" id="s-why" aria-labelledby="h-why"><div class="wrap" id="why"></div></section>
+  <section class="s" id="s-timeline" aria-labelledby="h-timeline"><div class="wrap" id="timeline"></div></section>
+  <section class="s" id="s-divergence" aria-labelledby="h-divergence"><div class="wrap" id="divergence"></div></section>
+  <section class="s" id="s-cost" aria-labelledby="h-cost"><div class="wrap" id="cost"></div></section>
+  <section class="outro"><div class="wrap" id="outro"></div></section>
+</main>
+<footer><div class="wrap" id="footer"></div></footer>
+
+<script src="data.js"></script>
+<script>
+(() => {
+"use strict";
+const SB = window.STORYBOARD;
+// the hash decides where we land (e.g. #s-timeline from the story deck), not a remembered scroll position
+if (location.hash && "scrollRestoration" in history) history.scrollRestoration = "manual";
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+// ================= strings =================
+const UI = {
+  brand: { en: "Bitwise Alignment", zh: "比特级对齐" },
+  story: { en: "Story", zh: "故事" },
+  nav: { why: { en: "Why", zh: "缘由" }, timeline: { en: "Timeline", zh: "时间线" }, divergence: { en: "First divergence", zh: "第一个分歧" }, cost: { en: "Cost", zh: "代价" } },
+  eyebrow: { en: "awesome-bitwise-alignment · explore", zh: "awesome-bitwise-alignment · 全部事件" },
+  h1: { en: "Making two runs agree, bit for bit.", zh: "让两次运行逐比特一致。" },
+  lede: { en: "Every event in the timeline, with its source: how ML systems learned to control nondeterminism, and what exactness costs.",
+          zh: "时间线上的每一个事件及其来源：机器学习系统如何学会控制非确定性，以及精确的代价几何。" },
+  verdict: { en: n => `Same three numbers, two summation orders: <b>${n} bits</b> differ.`, zh: n => `同样三个数，两种求和顺序：<b>${n} 个比特</b>不同。` },
+  sign: { en: "s", zh: "符" }, exponent: { en: "exponent", zh: "指数" }, mantissa: { en: "mantissa", zh: "尾数" },
+  stats: { events: { en: "events", zh: "个事件" }, firsts: { en: "pioneering works", zh: "项开创性工作" }, years: { en: "years", zh: "年" } },
+  ctaStart: { en: "Start reading", zh: "开始阅读" }, ctaFirsts: { en: "See the key milestones", zh: "查看关键节点" },
+  why: {
+    kicker: { en: "01 · Why bits differ", zh: "01 · 比特为何不同" },
+    title: { en: "The reduction order decides the result.", zh: "归约顺序决定结果。" },
+    intro: { en: "Floating-point addition is not associative. Anything that changes the order of a sum changes the bits, and in an LLM stack almost everything does.",
+             zh: "浮点加法不满足结合律。任何改变求和顺序的因素都会改变比特，而在 LLM 系统里，几乎所有因素都会改变它。" },
+    steps: [
+      { h: { en: "Not associative", zh: "不满足结合律" },
+        p: { en: "The same three doubles, added in two orders, land on neighbouring floating-point values. Neither is wrong, but they are not the same bits.",
+             zh: "同样三个双精度数，按两种顺序相加，落在相邻的两个浮点值上。两者都不算错，但比特不同。" } },
+      { h: { en: "Everything changes the order", zh: "处处都在改变顺序" },
+        p: { en: "Batch size, how a kernel splits a reduction, atomics, the parallel layout, a library upgrade, or a different algorithm for the same layer.",
+             zh: "batch 大小、kernel 如何切分归约、原子操作、并行布局、库升级，或同一层换了另一种算法。" } },
+      { h: { en: "Identical prefix, then drift", zh: "前缀一致，随后漂移" },
+        p: { en: "Two runs with the same seed and data agree for a while, then one flipped bit changes a token, a gradient or a sampled action, and they drift apart.",
+             zh: "种子和数据相同的两次运行会先一致一段，然后一个比特翻转改变了某个 token、梯度或采样动作，两者逐渐分开。" } },
+    ],
+    causes: [
+      { en: "Batch size & composition", zh: "batch 大小与组成", s: { en: "what else is in the batch", zh: "同一 batch 里还有谁" } },
+      { en: "Split-K / split-KV", zh: "Split-K / split-KV", s: { en: "how a reduction is tiled", zh: "归约如何切块" } },
+      { en: "Atomics", zh: "原子操作", s: { en: "order set by thread timing", zh: "顺序由线程时序决定" } },
+      { en: "Parallel layout", zh: "并行布局", s: { en: "TP degree, collectives, NCCL algorithm", zh: "TP 度、集合通信、NCCL 算法" } },
+      { en: "Library version", zh: "库版本", s: { en: "kernel choice, autotuning", zh: "kernel 选择、autotune" } },
+      { en: "Different algorithm", zh: "不同的算法", s: { en: "chunked vs recurrent attention", zh: "分块与递归形式的注意力" } },
+    ],
+    live: { en: "IEEE-754 double · computed live in your browser", zh: "IEEE-754 双精度 · 在你的浏览器中实时计算" },
+    runA: { en: "run A", zh: "运行 A" }, runB: { en: "run B, different stack", zh: "运行 B（不同的栈）" },
+    first: { en: "first divergence", zh: "第一个分歧" }, step: { en: "training step", zh: "训练步" },
+  },
+  tl: {
+    kicker: { en: "02 · Timeline", zh: "02 · 时间线" },
+    title: { en: "How the problem evolved", zh: "问题是如何演变的" },
+    intro: { en: "From determinism switches to batch invariance to exact RL. ★ marks the key milestones. Scroll the cards and the chart follows.",
+             zh: "从确定性开关，到 batch invariance，再到逐比特一致的 RL。★ 标记关键节点。滚动卡片，图表随之移动。" },
+    firsts: { en: "★ Key milestones", zh: "★ 关键节点" },
+    first: { en: "Key milestone", zh: "关键节点" },
+    also: { en: "Also in this period", zh: "同期还有" },
+    source: { en: "Source", zh: "来源" },
+    short: { framework: { en: "Frameworks", zh: "框架" }, inference: { en: "Inference", zh: "推理" }, rl: { en: "RL", zh: "RL" },
+             pretrain: { en: "Pre-train", zh: "预训练" }, hardware: { en: "Hardware", zh: "硬件" }, tools: { en: "Tools", zh: "工具" } },
+  },
+  dv: {
+    kicker: { en: "03 · Finding the first divergence", zh: "03 · 找到第一个分歧" },
+    title: { en: "Exact facts, not tolerances.", zh: "精确的事实，而不是容差。" },
+    intro: { en: "Once avoidable nondeterminism is controlled, two runs can be required to match exactly, and the first place they don't is where diagnosis starts.",
+             zh: "一旦控制住可避免的非确定性，就可以要求两次运行完全一致，而第一个不一致之处就是诊断的起点。" },
+    steps: [
+      { h: { en: "Fingerprint every operator", zh: "给每个算子求指纹" },
+        p: { en: "Hash each operator's output on both stacks, for example by XOR-ing its raw bits. A fingerprint is tiny, so it is cheap enough to keep for every operator.",
+             zh: "在两个栈上对每个算子的输出求哈希，例如对原始比特做 XOR。指纹很小，代价低到可以为每个算子都保留。" } },
+      { h: { en: "Walk both stacks in order", zh: "按顺序同时遍历两个栈" },
+        p: { en: "Match operators across the two stacks and compare fingerprints one by one. Equal means equal bits, not ‘close enough’.",
+             zh: "在两个栈之间对应算子，逐个比较指纹。相等意味着比特完全相同，而不是“足够接近”。" } },
+      { h: { en: "Stop at the first mismatch", zh: "停在第一个不一致处" },
+        p: { en: "Everything before it is certified identical; everything after is downstream noise. The search space collapses to one operator.",
+             zh: "此前的一切都被证实完全相同，此后的都是下游噪声。搜索空间收缩到一个算子。" } },
+    ],
+    stackA: { en: "Stack A · trainer", zh: "栈 A · 训练端" }, stackB: { en: "Stack B · rollout", zh: "栈 B · rollout 端" }, op: { en: "Operator", zh: "算子" },
+    verdict: { en: "First divergence: attention, layer 0. Everything above it is certified identical.", zh: "第一个分歧：第 0 层 attention。其上的一切都被证实完全相同。" },
+    illus: { en: "Illustration: the fingerprints are synthetic.", zh: "示意图：指纹数值是虚构的。" },
+    tools: { en: "Tools that work this way include", zh: "以这种方式工作的工具包括" },
+  },
+  cost: {
+    kicker: { en: "04 · Cost", zh: "04 · 代价" },
+    title: { en: "Exactness has a price, and it is falling.", zh: "精确有代价，而且在下降。" },
+    work: { en: "Work", zh: "工作" }, setting: { en: "Setting", zh: "设置" }, stated: { en: "Stated cost", zh: "自述代价" },
+    reading: { en: "Our reading: the cost fell from 2× to under 10% as exactness moved from wrapping kernels to designing them for it. Meanwhile most RL stacks ship statistical corrections, which are free, and keep exact bits as a debugging mode.",
+               zh: "我们的解读：随着“精确”从给 kernel 打补丁转向为其专门设计，代价已从 2 倍降到 10% 以内。与此同时，多数 RL 框架默认采用零成本的统计修正，把逐比特一致留作调试模式。" },
+    tableNote: { en: "All stated overheads, as reported by each source.", zh: "各来源自述的全部开销（表格为英文原文）。" },
+  },
+  outro: { read: { en: "Read the full list", zh: "阅读完整列表" }, edit: { en: "Edit the timeline", zh: "编辑时间线" }, propose: { en: "Propose a milestone", zh: "提议新的里程碑" } },
+  footer: { en: "Content: <code>data/timeline.json</code> (CC0). Every event links to its primary source; numbers are quoted only as each source states them.",
+            zh: "内容来自 <code>data/timeline.json</code>（CC0）。每个事件都链接到原始来源，数字均按来源原文引用。" },
+  themeLight: { en: "Switch to light theme", zh: "切换到浅色" }, themeDark: { en: "Switch to dark theme", zh: "切换到深色" },
+};
+
+// ================= state & helpers =================
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const qp = new URLSearchParams(location.search);
+let mode = [qp.get("lang"), store.get("bitwise-lang")].find(v => ["en", "zh", "both"].includes(v)) ||
+           ((navigator.language || "").toLowerCase().startsWith("zh") ? "zh" : "en");
+const savedTheme = store.get("bitwise-theme");
+if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+const isDark = () => document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const allLanes = () => new Set(SB.lanes.map(l => l.key));
+const filters = { lanes: allLanes(), firsts: false };
+let observers = [];
+let current = null;      // id of the event in focus
+let chartGeom = null;
+
+const P = () => (mode === "zh" ? "zh" : "en");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const T = (o, l = P()) => (o && typeof o === "object" ? (o[l] ?? o.en) : o ?? "");
+// bilingual inline: primary text, plus a Chinese line underneath in "both" mode
+const B = o => (mode === "both" && o && o.zh && o.zh !== o.en) ? `${esc(o.en)}<span class="zh2" lang="zh-CN">${esc(o.zh)}</span>` : esc(T(o));
+const laneOf = k => SB.lanes.find(l => l.key === k) || { color: "#888888", label: { en: k, zh: k } };
+function laneColor(k) {
+  const hex = laneOf(k).color.replace("#", "");
+  if (isDark()) return "#" + hex;
+  const n = parseInt(hex, 16), m = v => Math.round(v * 0.72);   // darker on light backgrounds
+  return `rgb(${m(n >> 16 & 255)}, ${m(n >> 8 & 255)}, ${m(n & 255)})`;
+}
+const yearOf = d => { const p = d.split("-").map(Number); return p[0] + ((p[1] || 6) - 1) / 12 + ((p[2] || 15) - 1) / 365; };
+const evById = id => SB.events.find(e => e.id === id);
+function repoUrl() {
+  if (SB.repo) return SB.repo.replace(/\/$/, "");
+  const m = /^([^.]+)\.github\.io$/.exec(location.hostname), seg = location.pathname.split("/").filter(Boolean)[0];
+  return m && seg ? `https://github.com/${m[1]}/${seg}` : "";
+}
+const f64 = v => { const dv = new DataView(new ArrayBuffer(8)); dv.setFloat64(0, v); return dv.getBigUint64(0); };
+
+// ================= hero =================
+function renderHero() {
+  const a = (0.1 + 0.2) + 0.3, b = 0.1 + (0.2 + 0.3);
+  const ba = f64(a).toString(2).padStart(64, "0"), bb = f64(b).toString(2).padStart(64, "0");
+  const ndiff = [...ba].filter((c, i) => c !== bb[i]).length;
+  const cells = (bits, other) => [...bits].map((c, i) =>
+    `<span class="${c !== other[i] ? "d" : ""}${i === 1 || i === 12 ? " gap" : ""}" style="animation-delay:${reduce ? 0 : 250 + i * 14}ms">${c}</span>`).join("");
+  const nEv = SB.events.length, nFirst = SB.events.filter(e => e.highlight).length;
+  const ys = SB.events.map(e => +e.date.slice(0, 4)), span = Math.max(...ys) - Math.min(...ys) + 1;
+  $("#hero").innerHTML = `
+    <div class="eyebrow">${esc(T(UI.eyebrow))}</div>
+    <h1>${B(UI.h1)}</h1>
+    <p class="lede">${B(UI.lede)}</p>
+    <div class="bits" role="img" aria-label="(0.1 + 0.2) + 0.3 = ${a}; 0.1 + (0.2 + 0.3) = ${b}; ${ndiff} bits differ">
+      <div class="bitrow a"><div class="expr">(0.1+0.2)+0.3</div><div class="bitcells">${cells(ba, bb)}</div></div>
+      <div class="bitrow b"><div class="expr">0.1+(0.2+0.3)</div><div class="bitcells">${cells(bb, ba)}</div></div>
+      <div class="bitlabels"><div></div><div class="parts"><span>${esc(T(UI.sign))}</span><span>${esc(T(UI.exponent))}</span><span>${esc(T(UI.mantissa))}</span></div></div>
+      <div class="bitverdict">${UI.verdict[P()](ndiff)}${mode === "both" ? `<span class="zh2" lang="zh-CN">${UI.verdict.zh(ndiff)}</span>` : ""}</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>${nEv}</b><span>${esc(T(UI.stats.events))}</span></div>
+      <div class="stat"><b>${span}</b><span>${esc(T(UI.stats.years))}</span></div>
+    </div>
+    <div class="ctas">
+      <a class="btn primary" href="#s-why">${esc(T(UI.ctaStart))} ↓</a>
+    </div>`;
+}
+
+// ================= why =================
+function renderWhy() {
+  const W = UI.why, a = (0.1 + 0.2) + 0.3, b = 0.1 + (0.2 + 0.3);
+  const ha = f64(a).toString(16).toUpperCase().padStart(16, "0"), hb = f64(b).toString(16).toUpperCase().padStart(16, "0");
+  const mark = (h, o) => [...h].map((c, i) => (c !== o[i] ? `<em>${c}</em>` : c)).join("");
+  const N = 160, w = 520, h = 220, px = u => 30 + u * (w - 40), py = v => 16 + (1 - v) * (h - 46);
+  let pa = "", pb = "";
+  for (let i = 0; i <= N; i++) {
+    const u = i / N, base = 0.88 * Math.exp(-3.1 * u) + 0.06 + 0.035 * Math.sin(38 * u) * Math.exp(-1.6 * u);
+    const drift = u > 0.42 ? Math.pow((u - 0.42) * 1.7, 1.5) * (0.16 * Math.sin(21 * u) + 0.1) : 0;
+    pa += (i ? "L" : "M") + px(u).toFixed(1) + " " + py(base).toFixed(1);
+    pb += (i ? "L" : "M") + px(u).toFixed(1) + " " + py(base + drift).toFixed(1);
+  }
+  const fx = px(0.42);
+  $("#why").innerHTML = `
+    <div class="kicker">${esc(T(W.kicker))}</div>
+    <h2 class="title" id="h-why">${B(W.title)}</h2>
+    <p class="intro">${B(W.intro)}</p>
+    <div class="scrolly">
+      <div class="stick"><div class="panel why" id="whypanel">
+        <div class="vis on" data-v="0"><div class="eq">
+          <div class="row"><span>(0.1 + 0.2) + 0.3 = ${a}</span><span class="hex">0x${mark(ha, hb)}</span></div>
+          <div class="row"><span>0.1 + (0.2 + 0.3) = ${b}</span><span class="hex">0x${mark(hb, ha)}</span></div>
+          <div class="caption">${esc(T(W.live))}</div>
+        </div></div>
+        <div class="vis" data-v="1"><div class="chips">
+          ${W.causes.map((c, i) => `<div class="chip" style="transition-delay:${i * 70}ms">${B(c)}<small>${B(c.s)}</small></div>`).join("")}
+        </div></div>
+        <div class="vis" data-v="2"><div class="curve">
+          <svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(T(W.steps[2].h))}">
+            <line x1="30" y1="${h - 30}" x2="${w - 10}" y2="${h - 30}" stroke="var(--line)"/>
+            <text x="30" y="${h - 10}" class="tick">${esc(T(W.step))} →</text>
+            <path d="${pb}" pathLength="1" stroke="var(--bad)"/>
+            <path d="${pa}" pathLength="1" stroke="var(--accent)"/>
+            <g class="mark"><line x1="${fx}" y1="10" x2="${fx}" y2="${h - 30}" stroke="var(--gold)" stroke-dasharray="4 4"/>
+              <text x="${fx + 8}" y="22" style="font:600 12px var(--sans);fill:var(--gold)">${esc(T(W.first))}</text></g>
+          </svg>
+          <div class="legend"><span><i style="background:var(--accent)"></i>${esc(T(W.runA))}</span><span><i style="background:var(--bad)"></i>${esc(T(W.runB))}</span></div>
+        </div></div>
+      </div></div>
+      <div class="steps">
+        ${W.steps.map((s, i) => `<div class="step" data-step="${i}"><div><span class="num">0${i + 1}</span><h3>${B(s.h)}</h3><p>${B(s.p)}</p></div></div>`).join("")}
+      </div>
+    </div>`;
+  observeSteps($("#why"), i => $$("#whypanel .vis").forEach(v => v.classList.toggle("on", +v.dataset.v === i)));
+}
+
+function observeSteps(root, onStep) {
+  const steps = $$(".step", root);
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => { if (en.isIntersecting) { steps.forEach(s => s.classList.toggle("on", s === en.target)); onStep(+en.target.dataset.step); } });
+  }, { rootMargin: "-45% 0px -45% 0px" });
+  steps.forEach(s => io.observe(s));
+  steps[0]?.classList.add("on");
+  observers.push(io);
+}
+
+// ================= timeline =================
+// Time axis: blend of linear time and event density (empirical CDF), so busy years get room.
+function warp() {
+  const ts = SB.events.map(e => yearOf(e.date)).sort((a, b) => a - b);
+  const t0 = Math.floor(ts[0]) - 0.05, t1 = Math.ceil(ts[ts.length - 1]);
+  const n = ts.length, pts = ts.map((t, i) => [t, (i + 0.5) / n]);
+  const cdf = t => {
+    if (t <= pts[0][0]) return pts[0][1] * (t - t0) / (pts[0][0] - t0 || 1);
+    const [lt, lu] = pts[n - 1];
+    if (t >= lt) return lu + (1 - lu) * (t - lt) / (t1 - lt || 1);
+    let i = 1; while (pts[i][0] < t) i++;
+    const [ta, ua] = pts[i - 1], [tb, ub] = pts[i];
+    return tb === ta ? ub : ua + (ub - ua) * (t - ta) / (tb - ta);
+  };
+  return { t0, t1, f: t => 0.38 * (t - t0) / (t1 - t0) + 0.62 * cdf(t) };
+}
+
+function renderTimeline() {
+  const L = UI.tl;
+  let html = "", buf = [];
+  const flush = () => { if (buf.length) html += `<div class="also-h">${esc(T(L.also))}</div><ul class="also">${buf.join("")}</ul>`; buf = []; };
+  for (const e of SB.events) {
+    const lc = laneColor(e.lane), lane = laneOf(e.lane);
+    if (e.featured) {
+      flush();
+      html += `<article class="ev card${e.highlight ? " first" : ""}" id="${esc(e.id)}" data-id="${esc(e.id)}" style="--lane:${lc}">
+        <div class="meta"><time datetime="${esc(e.date)}">${esc(e.date)}</time><span class="lane"><i></i>${esc(T(lane.label))}</span>${e.highlight ? `<span class="badge">★ ${esc(T(L.first))}</span>` : ""}</div>
+        <h3><a href="${esc(e.url)}" target="_blank" rel="noopener">${B(e.title)}</a></h3>
+        <p class="who">${esc(T(e.who))}</p>
+        ${e.opened ? `<p class="firstline">${B(e.opened)}</p>` : ""}
+        <p class="note">${B(e.note)}</p>
+        <div class="actions"><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(T(L.source))} ↗</a><a class="perma" href="#${esc(e.id)}">#${esc(e.id)}</a></div>
+      </article>`;
+    } else {
+      buf.push(`<li class="ev" id="${esc(e.id)}" data-id="${esc(e.id)}" style="--lane:${lc}">
+        <div class="row1"><time datetime="${esc(e.date)}">${esc(e.date)}</time><span class="lane" title="${esc(T(lane.label))}"><i></i></span><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(T(e.title))}</a><span class="who">${esc(T(e.who))}</span></div>
+        <div class="sub">${B(e.note)}</div></li>`);
+    }
+  }
+  flush();
+  $("#timeline").innerHTML = `
+    <div class="kicker">${esc(T(L.kicker))}</div>
+    <h2 class="title" id="h-timeline">${B(L.title)}</h2>
+    <p class="intro">${B(L.intro)}</p>
+    <div class="filters" role="group" aria-label="Filter">
+      <button type="button" class="fchip firsts" aria-pressed="${filters.firsts}" data-f="firsts">${esc(T(L.firsts))}</button>
+      ${SB.lanes.map(l => `<button type="button" class="fchip" style="--c:${laneColor(l.key)}" aria-pressed="${filters.lanes.has(l.key)}" data-f="${esc(l.key)}"><i></i>${esc(T(l.label))}</button>`).join("")}
+    </div>
+    <div class="tl">
+      <div class="stick"><div class="chart" id="chart"><svg id="chartsvg" aria-hidden="true"></svg><div class="tip" id="tip"></div><div class="now-label" id="nowlabel"></div></div></div>
+      <div class="events" id="events">${html}</div>
+    </div>`;
+  $$("#timeline .fchip").forEach(b => b.addEventListener("click", () => {
+    const f = b.dataset.f, all = filters.lanes.size === SB.lanes.length;
+    if (f === "firsts") filters.firsts = !filters.firsts;
+    else if (all) filters.lanes = new Set([f]);                                   // first click isolates a lane
+    else if (filters.lanes.has(f) && filters.lanes.size === 1) filters.lanes = allLanes();
+    else filters.lanes.has(f) ? filters.lanes.delete(f) : filters.lanes.add(f);
+    const keep = current; renderTimeline(); if (keep && visibleEvent(evById(keep))) setCurrent(keep);
+  }));
+  applyFilters();
+  drawChart();
+  const first = SB.events.find(visibleEvent);
+  setCurrent(current && visibleEvent(evById(current)) ? current : first && first.id);
+}
+const visibleEvent = e => !!e && filters.lanes.has(e.lane) && (!filters.firsts || !!e.highlight);
+function applyFilters() {
+  for (const e of SB.events) document.getElementById(e.id)?.classList.toggle("hidden", !visibleEvent(e));
+  $$("#events .also").forEach(ul => {
+    const any = $$("li", ul).some(li => !li.classList.contains("hidden"));
+    ul.classList.toggle("hidden", !any); ul.previousElementSibling?.classList.toggle("hidden", !any);
+  });
+}
+
+function drawChart() {
+  const box = $("#chart"); if (!box) return;
+  const svg = $("#chartsvg");
+  const Wd = box.clientWidth, Ht = box.clientHeight;
+  if (!Wd || !Ht) return;
+  const vertical = Ht >= 360;
+  const wp = warp(), lanes = SB.lanes.map(l => l.key);
+  const pad = vertical ? { t: 46, b: 40, l: 50, r: 30 } : { t: 12, b: 40, l: 14, r: 14 };
+  const iw = Wd - pad.l - pad.r, ih = Ht - pad.t - pad.b;
+  const tpos = t => (vertical ? pad.t + wp.f(t) * ih : pad.l + wp.f(t) * iw);
+  const lpos = k => { const i = lanes.indexOf(k); return vertical ? pad.l + (i + 0.5) * iw / lanes.length : pad.t + (i + 0.5) * ih / lanes.length; };
+  const XY = (k, t) => (vertical ? [lpos(k), tpos(t)] : [tpos(t), lpos(k)]);
+  let s = "";
+  for (const e of SB.eras) {
+    const a = tpos(Math.max(e.from, wp.t0)), b = tpos(Math.min(e.to, wp.t1));
+    s += vertical ? `<rect class="era" x="${pad.l - 4}" y="${a}" width="${iw + 8}" height="${b - a - 3}" rx="8"/>`
+                  : `<rect class="era" x="${a}" y="${pad.t - 4}" width="${b - a - 3}" height="${ih + 8}" rx="6"/>`;
+    // era names run along the right edge, rotated, so they never sit on top of dots
+    if (vertical && b - a > 60) {
+      const cx = Wd - 12, cy = (a + b) / 2;
+      s += `<rect x="${Wd - 24}" y="${a}" width="2" height="${b - a - 3}" rx="1" fill="var(--line)"/>`;
+      s += `<text class="eralab" x="${cx}" y="${cy}" text-anchor="middle" transform="rotate(90 ${cx} ${cy})">${esc(T(e.label))}</text>`;
+    }
+  }
+  let lastLab = -1e9;
+  for (let y = Math.ceil(wp.t0); y <= wp.t1; y++) {
+    const p = tpos(y);
+    if (vertical) {
+      s += `<line class="grid" x1="${pad.l - 4}" x2="${Wd - pad.r + 4}" y1="${p}" y2="${p}"/>`;
+      if (p - lastLab > 14) { s += `<text class="tick" x="${pad.l - 10}" y="${p + 4}" text-anchor="end">${y}</text>`; lastLab = p; }
+    } else {
+      s += `<line class="grid" x1="${p}" x2="${p}" y1="${pad.t - 4}" y2="${pad.t + ih + 4}"/>`;
+      if (p - lastLab > 30) { s += `<text class="tick" x="${p}" y="${Ht - pad.b + 16}" text-anchor="middle">${y}</text>`; lastLab = p; }
+    }
+  }
+  if (vertical) for (const k of lanes) {
+    const p = lpos(k);
+    s += `<line class="grid" x1="${p}" x2="${p}" y1="${pad.t}" y2="${pad.t + ih}" stroke-dasharray="2 5"/>`;
+    s += `<text class="lanelab" x="${p}" y="${pad.t - 18}" text-anchor="middle" fill="${laneColor(k)}">${esc(T(UI.tl.short[k]))}</text>`;
+  }
+  for (const e of SB.events) {
+    const [x, y] = XY(e.lane, yearOf(e.date)), r = e.featured ? (vertical ? 6 : 4.5) : (vertical ? 3.6 : 2.8);
+    if (e.highlight) s += `<circle class="halo" data-id="${esc(e.id)}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r + 4}"/>`;
+    s += `<circle class="dot" data-id="${esc(e.id)}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${laneColor(e.lane)}"/>`;
+  }
+  s += vertical ? `<line class="nowline" id="nowline" x1="${pad.l - 4}" x2="${Wd - pad.r + 4}" y1="0" y2="0"/>`
+                : `<line class="nowline" id="nowline" x1="0" x2="0" y1="${pad.t - 4}" y2="${pad.t + ih + 4}"/>`;
+  s += `<g class="cur" id="cur"><circle class="pulse" r="${vertical ? 9 : 7}"/><circle r="${vertical ? 9 : 7}"/></g>`;
+  svg.setAttribute("viewBox", `0 0 ${Wd} ${Ht}`);
+  svg.innerHTML = s;
+  chartGeom = { XY, vertical };
+  const tip = $("#tip");
+  $$(".dot", svg).forEach(c => {
+    const e = evById(c.dataset.id);
+    c.addEventListener("mouseenter", () => {
+      tip.innerHTML = `<time>${esc(e.date)}</time>${esc(T(e.title))}`;
+      const cx = +c.getAttribute("cx"), cy = +c.getAttribute("cy");
+      tip.style.left = Math.min(Math.max(cx - 60, 8), Wd - 268) + "px";
+      tip.style.top = (cy > Ht - 90 ? cy - 58 : cy + 14) + "px";
+      tip.classList.add("show");
+    });
+    c.addEventListener("mouseleave", () => tip.classList.remove("show"));
+    c.addEventListener("click", () => {
+      if (!visibleEvent(e)) { filters.lanes = allLanes(); filters.firsts = false; renderTimeline(); }
+      setCurrent(e.id);
+      scrollToEvent(e.id, true);
+    });
+  });
+  updateChart();
+}
+
+function setCurrent(id) {
+  if (!id) return;
+  current = id;
+  $$("#events .ev.on").forEach(el => el.classList.remove("on"));
+  document.getElementById(id)?.classList.add("on");
+  updateChart();
+}
+function updateChart() {
+  if (!chartGeom || !current) return;
+  const e = evById(current); if (!e || !$("#cur")) return;
+  const t = yearOf(e.date), [x, y] = chartGeom.XY(e.lane, t);
+  for (const c of $$("#chartsvg .dot, #chartsvg .halo")) {
+    const ev = evById(c.dataset.id);
+    c.classList.toggle("future", yearOf(ev.date) > t + 1e-6);
+    c.classList.toggle("off", !visibleEvent(ev));
+  }
+  const cur = $("#cur");
+  cur.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+  $$("circle", cur).forEach(c => c.setAttribute("stroke", laneColor(e.lane)));
+  $("#nowline").setAttribute("transform", chartGeom.vertical ? `translate(0 ${y.toFixed(1)})` : `translate(${x.toFixed(1)} 0)`);
+  $("#nowlabel").innerHTML = `<b>${esc(e.date)}</b> · ${esc(T(e.title))}`;
+}
+
+// ================= divergence =================
+const OPS = ["embedding", "rmsnorm", "q / k / v proj", "rope", "attention", "o_proj", "residual add", "rmsnorm", "mlp up · gate", "activation", "mlp down"];
+const BAD = 4;
+const fpOf = (i, side) => { const a = Math.imul(i + 11, 2654435761) >>> 0; return (side && i >= BAD ? (a ^ (Math.imul(i + 5, 40503) >>> 0)) >>> 0 : a).toString(16).padStart(8, "0"); };
+function renderDivergence() {
+  const D = UI.dv;
+  // listed alphabetically, all cited in the README
+  const tools = [
+    ["Megatron Core hash traces", "https://developer.nvidia.com/blog/scale-bitwise-deterministic-pretraining-with-nvidia-megatron-core/"],
+    ["OpGuard", "https://www.usenix.org/conference/osdi26/presentation/zhou-ziming"],
+    ["PyTorch DebugMode", "https://docs.pytorch.org/tutorials/recipes/debug_mode_tutorial.html"],
+    ["Verde / RepOps", "https://arxiv.org/abs/2502.19405"],
+  ];
+  $("#divergence").innerHTML = `
+    <div class="kicker">${esc(T(D.kicker))}</div>
+    <h2 class="title" id="h-divergence">${B(D.title)}</h2>
+    <p class="intro">${B(D.intro)}</p>
+    <div class="scrolly">
+      <div class="stick"><div class="panel">
+        <table class="fp" id="fp"><thead><tr><th>${esc(T(D.op))}</th><th>${esc(T(D.stackA))}</th><th></th><th>${esc(T(D.stackB))}</th></tr></thead>
+        <tbody>${OPS.map((op, i) => `<tr class="pending"><td>${esc(op)}</td><td class="h">${fpOf(i, 0)}</td><td class="eq">${i >= BAD ? "≠" : "="}</td><td class="h">${fpOf(i, 1)}</td></tr>`).join("")}</tbody></table>
+        <div class="verdict" id="fpverdict">${B(D.verdict)}</div>
+        <div class="illus">${esc(T(D.illus))}</div>
+      </div></div>
+      <div class="steps" id="dvsteps">
+        ${D.steps.map((s, i) => `<div class="step" data-step="${i}"><div><span class="num">0${i + 1}</span><h3>${B(s.h)}</h3><p>${B(s.p)}</p></div></div>`).join("")}
+        <p class="toolsline">${esc(T(D.tools))}: ${tools.map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(n)}</a>`).join(", ")}.</p>
+      </div>
+    </div>`;
+  observeSteps($("#divergence"), () => {});
+}
+function updateDivergence() {
+  const st = $("#dvsteps"); if (!st) return;
+  const vh = innerHeight, narrow = matchMedia("(max-width: 960px)").matches;
+  // wide: progress through the steps beside the pinned panel; narrow: progress of the panel itself through the viewport
+  const r = narrow ? $("#fp").getBoundingClientRect() : st.getBoundingClientRect();
+  const prog = narrow ? Math.min(Math.max((vh * 0.9 - r.top) / Math.max(r.height + vh * 0.25, 1), 0), 1)
+                      : Math.min(Math.max((vh * 0.6 - r.top) / Math.max(r.height - vh * 0.5, 1), 0), 1);
+  const k = reduce ? OPS.length : Math.floor(prog * (OPS.length + 2)) - 1;   // rows revealed so far
+  $$("#fp tbody tr").forEach((tr, i) => { tr.className = i > k ? "pending" : i < BAD ? "ok" : i === BAD ? "bad" : "bad after"; });
+  $("#fpverdict").classList.toggle("show", k >= BAD + 1);
+}
+
+// ================= cost =================
+function renderCost() {
+  const C = UI.cost, feat = SB.costs.filter(c => c.featured), maxV = Math.max(...feat.map(c => c.featured.value));
+  $("#cost").innerHTML = `
+    <div class="kicker">${esc(T(C.kicker))}</div>
+    <h2 class="title" id="h-cost">${B(C.title)}</h2>
+    <p class="intro">${B(SB.costNote)}</p>
+    <div class="bars${reduce ? " in" : ""}" id="bars">
+      ${feat.map(c => {
+        const w = Math.max(c.featured.value / maxV * 100, 2.5), inside = w >= 55;
+        return `<div class="bar" style="--w:${w.toFixed(1)}%"><div class="lab"><b>${B(c.featured.label)}</b><span>${esc(T(c.featured.who))}</span></div>
+          <div class="track"><div class="fill"></div><a class="val ${inside ? "inside" : "out"}" href="${esc(c.url)}" target="_blank" rel="noopener" style="text-decoration:none">${esc(T(c.featured.text))}</a></div></div>`;
+      }).join("")}
+    </div>
+    <table class="costs"><thead><tr><th>${esc(T(C.work))}</th><th>${esc(T(C.setting))}</th><th>${esc(T(C.stated))}</th></tr></thead>
+      <tbody>${SB.costs.map(c => `<tr><td><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.work)}</a></td><td>${esc(c.setting)}</td><td>${esc(c.cost)}</td></tr>`).join("")}</tbody></table>
+    <p class="illus">${esc(T(C.tableNote))}</p>
+    <p class="reading">${B(C.reading)}</p>`;
+  const io = new IntersectionObserver(en => { if (en.some(x => x.isIntersecting)) $("#bars").classList.add("in"); }, { threshold: 0.3 });
+  io.observe($("#bars")); observers.push(io);
+}
+
+// ================= outro, footer, nav =================
+function renderOutro() {
+  const repo = repoUrl(), O = UI.outro, [big, ...rest] = SB.outro;
+  $("#outro").innerHTML = `
+    <p class="big">${B(big)}</p>
+    ${rest.map(o => `<p class="sub">${B(o)}</p>`).join("")}
+    ${repo ? `<div class="ctas">
+      <a class="btn primary" href="${esc(repo)}#readme" target="_blank" rel="noopener">${esc(T(O.read))}</a>
+      <a class="btn" href="${esc(repo)}/edit/main/data/timeline.json" target="_blank" rel="noopener">${esc(T(O.edit))}</a>
+      <a class="btn" href="${esc(repo)}/issues/new?template=milestone.yml" target="_blank" rel="noopener">${esc(T(O.propose))}</a></div>` : ""}`;
+  $("#footer").innerHTML = mode === "both" ? `${UI.footer.en}<br><span lang="zh-CN">${UI.footer.zh}</span>` : T(UI.footer);
+  const gh = $("#gh"); if (repo) { gh.href = repo; gh.classList.remove("hidden"); }
+}
+function renderNav() {
+  $("[data-t=brand]").textContent = T(UI.brand);
+  $("#navlinks").innerHTML = `<a href="index.html">← ${esc(T(UI.story))}</a>` + Object.entries(UI.nav).map(([k, o]) => `<a href="#s-${k}" data-sec="s-${k}">${esc(T(o))}</a>`).join("");
+  $$("[data-lang]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === mode)));
+  document.documentElement.lang = mode === "zh" ? "zh-CN" : "en";
+  const th = $("#theme");
+  th.textContent = isDark() ? "☀" : "☾";
+  th.setAttribute("aria-label", T(isDark() ? UI.themeLight : UI.themeDark));
+}
+function renderAll() {
+  observers.forEach(o => o.disconnect()); observers = [];
+  renderNav(); renderHero(); renderWhy(); renderTimeline(); renderDivergence(); renderCost(); renderOutro();
+  onScroll();
+}
+
+// the event in focus is the visible one nearest a reading line 42% down the viewport
+function trackFocus() {
+  const sec = document.getElementById("s-timeline").getBoundingClientRect();
+  if (sec.bottom < 0 || sec.top > innerHeight) return;
+  const line = innerHeight * 0.42;
+  let best = null, bd = Infinity;
+  for (const el of $$("#events .ev")) {
+    if (el.classList.contains("hidden") || el.closest(".hidden")) continue;
+    const r = el.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > innerHeight) continue;
+    const d = r.top <= line && r.bottom >= line ? 0 : Math.min(Math.abs(r.top - line), Math.abs(r.bottom - line));
+    if (d < bd) { bd = d; best = el; }
+  }
+  if (best && best.dataset.id !== current) setCurrent(best.dataset.id);
+}
+function onScroll() {
+  const h = document.documentElement, max = h.scrollHeight - innerHeight;
+  trackFocus();
+  $("#progress").style.transform = `scaleX(${max > 0 ? Math.min(h.scrollTop / max, 1) : 0})`;
+  updateDivergence();
+  let on = null;
+  for (const id of ["s-why", "s-timeline", "s-divergence", "s-cost"]) if (document.getElementById(id).getBoundingClientRect().top < innerHeight * 0.4) on = id;
+  $$("#navlinks a").forEach(a => a.classList.toggle("on", a.dataset.sec === on));
+}
+let raf = 0;
+addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; onScroll(); }); }, { passive: true });
+let rz = 0;
+addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { drawChart(); onScroll(); }, 120); });
+
+// re-render in place, keeping the reader's position anchored to the event in focus
+function rerender() {
+  const el = current && document.getElementById(current);
+  const off = el ? el.getBoundingClientRect().top : null, y = scrollY, keep = current;
+  renderAll();
+  const el2 = keep && document.getElementById(keep);
+  if (el2 && off !== null && off > -40 && off < innerHeight) { setCurrent(keep); scrollTo({ top: scrollY + el2.getBoundingClientRect().top - off, behavior: "instant" }); }
+  else scrollTo({ top: y, behavior: "instant" });
+}
+$$("[data-lang]").forEach(b => b.addEventListener("click", () => {
+  if (b.dataset.lang === mode) return;
+  mode = b.dataset.lang; store.set("bitwise-lang", mode);
+  const u = new URL(location.href); u.searchParams.set("lang", mode); history.replaceState(null, "", u);
+  rerender();
+}));
+$("#theme").addEventListener("click", () => {
+  const next = isDark() ? "light" : "dark";
+  document.documentElement.dataset.theme = next; store.set("bitwise-theme", next);
+  rerender();
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { if (!document.documentElement.dataset.theme) rerender(); });
+
+// deep links: #<event-id> scrolls to that event, clearing filters that would hide it
+function goHash() {
+  const id = decodeURIComponent(location.hash.slice(1)), e = evById(id);
+  if (!e) { if (id) document.getElementById(id)?.scrollIntoView({ behavior: "instant" }); return; }   // section anchors
+  if (!visibleEvent(e)) { filters.lanes = allLanes(); filters.firsts = false; renderTimeline(); }
+  setCurrent(id);
+  setTimeout(() => scrollToEvent(id, false), 60);
+}
+// put an event's top just above the focus reading line, so focus tracking agrees with the target
+function scrollToEvent(id, smooth) {
+  const el = document.getElementById(id); if (!el) return;
+  const top = scrollY + el.getBoundingClientRect().top - innerHeight * 0.42 + 8;
+  scrollTo({ top, behavior: smooth && !reduce ? "smooth" : "instant" });
+}
+addEventListener("hashchange", goHash);
+
+renderAll();
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { drawChart(); if (location.hash) goHash(); });
+})();
+</script>
+</body>
+</html>

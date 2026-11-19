@@ -1,0 +1,42 @@
+name: Propose a milestone
+description: Suggest a paper, post, PR or release for the timeline and the website.
+title: "[milestone] "
+labels: [milestone]
+body:
+  - type: input
+    id: url
+    attributes:
+      label: Primary source URL
+      description: arXiv abstract page, conference page, official blog or docs, or the GitHub issue/PR. Not a tweet about it.
+    validations:
+      required: true
+  - type: input
+    id: date
+    attributes:
+      label: Date
+      placeholder: YYYY-MM-DD (or YYYY-MM)
+    validations:
+      required: true
+  - type: input
+    id: who
+    attributes:
+      label: Authors or org
+    validations:
+      required: true
+  - type: textarea
+    id: note
+    attributes:
+      label: What it showed, in one or two sentences
+      description: Quote any cost or overhead only if the source states it.
+    validations:
+      required: true
+  - type: textarea
+    id: first
+    attributes:
+      label: Was it the first to show something? (optional)
+      description: If so, say what insight it was first to show, and how you know nothing earlier did.
+  - type: textarea
+    id: zh
+    attributes:
+      label: 中文（可选）
+      description: 标题与要点的简体中文翻译。
