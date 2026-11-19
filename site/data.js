@@ -317,7 +317,7 @@ window.STORYBOARD = {
    "url": "https://www.tensorflow.org/api_docs/python/tf/config/experimental/enable_op_determinism"
   }
  ],
- "repo": "",
+ "repo": "https://github.com/training-alignment/awesome-bitwise-alignment",
  "site_url": "",
  "orgs": {
   "google": {
