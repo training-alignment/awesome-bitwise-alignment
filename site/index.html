@@ -382,7 +382,7 @@ const UI = {
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 const qp = new URLSearchParams(location.search);
 let mode = [qp.get("lang"), store.get("bitwise-lang")].find(v => ["en", "zh", "both"].includes(v)) ||
-           ((navigator.language || "").toLowerCase().startsWith("zh") ? "zh" : "en");
+           "en";   // English by default; ?lang= or a choice made with the switch overrides it
 const th = store.get("bitwise-theme"); if (th === "light" || th === "dark") document.documentElement.dataset.theme = th;
 const isDark = () => document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;

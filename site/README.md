@@ -9,7 +9,7 @@ Deployed to GitHub Pages by `.github/workflows/pages.yml`. Two pages share the g
 - **`explore.html`, everything.** All events with a pinned swimlane chart that follows the card you are reading. Filter by lane or by ★ key milestones; deep links are `#<event-id>`.
 
 Both pages:
-- English / 简体中文 / bilingual side by side (`?lang=en|zh|both`), remembered between visits.
+- English by default; 简体中文 or bilingual side by side via the switch or `?lang=zh|both` (a choice made with the switch is remembered).
 - Light and dark themes, a reduced-motion fallback, and a phone layout.
 - Fonts from Google Fonts (Inter, Noto Sans SC, JetBrains Mono), with system fallbacks.
 
