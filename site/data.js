@@ -318,7 +318,7 @@ window.STORYBOARD = {
   }
  ],
  "repo": "https://github.com/training-alignment/awesome-bitwise-alignment",
- "site_url": "",
+ "site_url": "https://training-alignment.github.io/awesome-bitwise-alignment",
  "orgs": {
   "google": {
    "name": "Google",

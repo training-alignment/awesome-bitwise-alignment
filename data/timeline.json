@@ -1,7 +1,7 @@
 {
   "$comment": "Single source of truth for the README Timeline and Costs tables and for the website (site/). Edit this file, then run: python3 scripts/build.py. See CONTRIBUTING.md.",
   "repo": "https://github.com/training-alignment/awesome-bitwise-alignment",
-  "site_url": "",
+  "site_url": "https://training-alignment.github.io/awesome-bitwise-alignment",
   "story": {
     "title": {
       "en": "Bitwise Alignment",
