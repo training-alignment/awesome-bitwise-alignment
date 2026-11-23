@@ -262,8 +262,8 @@ The rollout engine (vLLM, SGLang) and the trainer (FSDP, Megatron) run the same 
 - [vLLM #48305: RFC: Training–inference consistency for RL](https://github.com/vllm-project/vllm/issues/48305) — 2026-07-11 · Eight consistency dimensions. See also [#42259](https://github.com/vllm-project/vllm/issues/42259) (logprob semantics) and [#62365](https://github.com/vllm-project/vllm/pull/62365) (bitwise DeepSeek-V4.1-Flash with CUDA graphs).
 - [slime #566](https://github.com/THUDM/slime/pull/566) / [SGLang #12058](https://github.com/sgl-project/sglang/pull/12058) — 2025-10-24 · "True on-policy" support.
 - [SGLang #26359: True-on-policy contract definitions](https://github.com/sgl-project/sglang/pull/26359) — 2026-05-26 (open).
-- [SkyRL #2201: Full-distribution comparison for IsoExec validation](https://github.com/NovaSky-AI/SkyRL/issues/2201) — 2026-09-12.
-- [SkyRL #699: Track inference vs trainer logprob mismatch](https://github.com/NovaSky-AI/SkyRL/issues/699) — 2025-11-24.
+- [SkyRL #2201: Full-distribution comparison for IsoExec validation](https://github.com/skyrl-project/SkyRL/issues/2201) — 2026-09-12.
+- [SkyRL #699: Track inference vs trainer logprob mismatch](https://github.com/skyrl-project/SkyRL/issues/699) — 2025-11-24.
 - [AReaL #1405: IcePop and KPop masking](https://github.com/areal-project/AReaL/pull/1405) — 2026-06-15 (merged).
 
 ### Inference determinism
